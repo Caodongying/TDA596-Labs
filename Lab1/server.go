@@ -66,11 +66,13 @@ func handleConnection(conn net.Conn) {
 		// routing
 		fmt.Printf("This is a POST")
 		// process
+		return
 	}else{
 		response := "Group 6: This request type is not implemented"
 		conn.Write([]byte("HTTP/1.1 501 Not Implemented\n"))
 		conn.Write([]byte("\n"))
 		conn.Write([]byte(response))
+		return // not sure
 	}
 }
 
@@ -78,7 +80,7 @@ func printRequest(request *http.Request) {
 	reqDump, err := httputil.DumpRequest(request, true)
 	if err != nil {
 		fmt.Println("Dumping request Error:", err)
-		return
+		return // not sure
 	}
 	fmt.Printf("REQUEST:\n%s", string(reqDump))
 }
