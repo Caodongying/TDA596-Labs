@@ -65,6 +65,7 @@ func handleConnection(conn net.Conn) {
 	}else if reqMethod == "POST" {
 		// routing
 		fmt.Printf("This is a POST")
+		// process
 	}else{
 		response := "Group 6: This request type is not implemented"
 		conn.Write([]byte("HTTP/1.1 501 Not Implemented\n"))
