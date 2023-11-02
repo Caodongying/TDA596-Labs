@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"bufio"
 	"strings"
+	"io/ioutil"
 )
 
 const (
@@ -129,7 +130,14 @@ func fileExists(filePath string) bool {
 }
 
 func sendResource(conn net.Conn, responseContentType string, localFilePath string) {
-	responseBody := localFilePath
+	// open the file
+	fileData, err := ioutil.ReadFile(localFilePath)
+	if err != nil {
+		fmt.Println("Opening file Error: " + err.Error())
+		return
+	}
+
+	responseBody := fileData
 	conn.Write([]byte("HTTP/1.1 200 OK\r\n"))
 	conn.Write([]byte("Content-Type: " + responseContentType +"\r\n"))
 	conn.Write([]byte("\r\n")) // does tcp require \r\n?
