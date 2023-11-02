@@ -1,0 +1,2 @@
+This is the text file.
+Stored in Group6's Database.
