@@ -9,26 +9,30 @@ import (
 	"bufio"
 	"strings"
 	"io/ioutil"
+	"path/filepath"
+	"flag"
+	"strconv"
 )
 
 const (
 	networkConn = "tcp"
 	hostConn = "localhost"
-	portConn = "1234"
 	localDB = "/database"
 )
 
 func main() {
+	portPtr := flag.Int("port", 8080, "A port that the server listens from")
+	flag.Parse()
+	portConn := *portPtr
 	// listen on a specific port
-	listener, err := net.Listen(networkConn, hostConn + ":" + portConn)
+	listener, err := net.Listen(networkConn, hostConn + ":" + strconv.Itoa(portConn))
 	if err != nil {
-		// TBC - listen fails
 		fmt.Println("Listening Error:", err.Error())
 		return
 	}
 	defer listener.Close()
 
-	fmt.Println("Group 6 server is listening on " + hostConn + ":" + portConn)
+	fmt.Println("Group 6 server is listening on " + hostConn + ":" + strconv.Itoa(portConn))
 
 	// keep accepting connection request
 	for {
@@ -67,13 +71,21 @@ func handleConnection(conn net.Conn) {
 	fileUrl := request.URL.String()
 	urlSplit := strings.Split(fileUrl, ".")
 	fileExtension := urlSplit[len(urlSplit)-1]
-	responseContentType := contentTypeMap[fileExtension] // empty result should respond with 400 "Bad Request"
+	responseContentType := contentTypeMap[fileExtension]
 	
-	current_directory, err := os.Getwd()
+	exePath, err := os.Executable()
 	if err != nil{
-		fmt.Printf("Getting current directory Error: " + err.Error())
+		fmt.Printf("Getting executable path Error: " + err.Error())
+		response := "500 Internal Server Error (Getting executable path Error)"
+		conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n"))
+		conn.Write([]byte("\r\n"))
+		conn.Write([]byte(response))
+		return
 	}
-	localFilePath := current_directory + localDB + fileUrl // a bit risky
+
+	lab1Directory := filepath.Dir(exePath)
+	localFilePath := lab1Directory + localDB + fileUrl
+	fmt.Println("localFilePath is: " + localFilePath)
 
 	// handle request
 	if reqMethod == "GET" {
@@ -134,6 +146,10 @@ func sendResource(conn net.Conn, responseContentType string, localFilePath strin
 	fileData, err := ioutil.ReadFile(localFilePath)
 	if err != nil {
 		fmt.Println("Opening file Error: " + err.Error())
+		response := "500 Internal Server Error (Opening file Error)"
+		conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n"))
+		conn.Write([]byte("\r\n"))
+		conn.Write([]byte(response))
 		return
 	}
 
