@@ -67,26 +67,33 @@ func handleConnection(conn net.Conn) {
 	urlSplit := strings.Split(fileUrl, ".")
 	fileExtension := urlSplit[len(urlSplit)-1]
 	responseContentType := contentTypeMap[fileExtension] // empty result should respond with 400 "Bad Request"
-	localFilePath := localDB + fileUrl
+	
+	current_directory, err := os.Getwd()
+	if err != nil{
+		fmt.Printf("Getting current directory Error: " + err.Error())
+	}
+	localFilePath := current_directory + localDB + fileUrl // a bit risky
 
 	// handle request
 	if reqMethod == "GET" {
 		if responseContentType == ""{
 			// File extension not allowed
 			// Respond with 400 "Bad Request" code
+			response := "400 Bad Request"
 			conn.Write([]byte("HTTP/1.1 400 Bad Request\r\n"))
 			conn.Write([]byte("\r\n"))
-			conn.Write([]byte("400 Bad Request"))
+			conn.Write([]byte(response))
 			return
 		}
 
 		if fileExists(localFilePath){
-			sendResource(conn, responseContentType)
+			sendResource(conn, responseContentType, localFilePath)
 			return
 		}else{
+			response := "404 Not Found"
 			conn.Write([]byte("HTTP/1.1 404 Not Found\r\n"))
 			conn.Write([]byte("\r\n"))
-			conn.Write([]byte("404 Not Found"))
+			conn.Write([]byte(response))
 			return
 		}
 	}else if reqMethod == "POST" {
@@ -95,8 +102,8 @@ func handleConnection(conn net.Conn) {
 		// process
 		return
 	}else{
-		response := "Group 6: This request type is not implemented"
-		conn.Write([]byte("HTTP/1.1 501 Not Implemented\n"))
+		response := "501 Not Implemented"
+		conn.Write([]byte("HTTP/1.1 501 Not Implemented\r\n"))
 		conn.Write([]byte("\r\n"))
 		conn.Write([]byte(response))
 		return // not sure
@@ -121,9 +128,8 @@ func fileExists(filePath string) bool {
 	return err == nil
 }
 
-func sendResource(conn net.Conn, responseContentType string) {
-	// not done yet. Need to write html responseBody and show the resource
-	responseBody := "Group 6: This is the response to GET"
+func sendResource(conn net.Conn, responseContentType string, localFilePath string) {
+	responseBody := localFilePath
 	conn.Write([]byte("HTTP/1.1 200 OK\r\n"))
 	conn.Write([]byte("Content-Type: " + responseContentType +"\r\n"))
 	conn.Write([]byte("\r\n")) // does tcp require \r\n?
