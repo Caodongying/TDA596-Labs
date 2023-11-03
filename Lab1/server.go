@@ -21,6 +21,9 @@ const (
 )
 
 func main() {
+	// create a buffered channel for goroutine limitation
+	channel := make(chan string, 10)
+	// read the port number passed from terminal
 	portPtr := flag.Int("port", 8080, "A port that the server listens from")
 	flag.Parse()
 	portConn := *portPtr
@@ -41,19 +44,23 @@ func main() {
 			fmt.Println("Accepting Error", err.Error())
 			continue
 		}
-		// TBC - goroutines maximum 10
-		go handleConnection(conn)
+		// goroutines maximum 10
+		channel <- "\n ************* A goroutine finished! *************" // this message will be shown before return handleConnection
+		fmt.Println("\n ************* A goroutine has started! *************") 
+		go handleConnection(conn, channel)
 	}	
 }
 
-func handleConnection(conn net.Conn) {
-	defer conn.Close()
+func handleConnection(conn net.Conn, channel chan string) {
+	defer conn.Close() // TBC: maybe add channel receiving as a callback?
 
 	// read request
 	reader := bufio.NewReader(conn)
 	request, err := http.ReadRequest(reader)
 	if err != nil {
 		fmt.Println("Reading http request Error:", err)
+		temp := <- channel
+		fmt.Println(temp+"1")
 		return
 	}
 	printRequest(request)
@@ -80,6 +87,8 @@ func handleConnection(conn net.Conn) {
 		conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n"))
 		conn.Write([]byte("\r\n"))
 		conn.Write([]byte(response))
+		temp := <- channel
+		fmt.Println((temp+"2"))
 		return
 	}
 
@@ -96,29 +105,39 @@ func handleConnection(conn net.Conn) {
 			conn.Write([]byte("HTTP/1.1 400 Bad Request\r\n"))
 			conn.Write([]byte("\r\n"))
 			conn.Write([]byte(response))
+			temp := <- channel
+			fmt.Println((temp+"3"))
 			return
 		}
 
 		if fileExists(localFilePath){
 			sendResource(conn, responseContentType, localFilePath)
+			temp := <- channel
+			fmt.Println((temp+"4"))
 			return
 		}else{
 			response := "404 Not Found"
 			conn.Write([]byte("HTTP/1.1 404 Not Found\r\n"))
 			conn.Write([]byte("\r\n"))
 			conn.Write([]byte(response))
+			temp := <- channel
+			fmt.Println((temp+"5"))
 			return
 		}
 	}else if reqMethod == "POST" {
 		// routing
 		fmt.Printf("This is a POST")
 		// process
+		temp := <- channel
+		fmt.Println((temp+"6"))
 		return
 	}else{
 		response := "501 Not Implemented"
 		conn.Write([]byte("HTTP/1.1 501 Not Implemented\r\n"))
 		conn.Write([]byte("\r\n"))
 		conn.Write([]byte(response))
+		temp := <- channel
+		fmt.Println((temp+"7"))
 		return // not sure
 	}
 }
