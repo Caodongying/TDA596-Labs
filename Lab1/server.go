@@ -46,21 +46,20 @@ func main() {
 		}
 		// goroutines maximum 10
 		channel <- "\n ************* A goroutine finished! *************" // this message will be shown before return handleConnection
-		fmt.Println("\n ************* A goroutine has started! *************") 
 		go handleConnection(conn, channel)
 	}	
 }
 
 func handleConnection(conn net.Conn, channel chan string) {
 	defer conn.Close() // TBC: maybe add channel receiving as a callback?
+	defer releaseBufferChannel(channel)
 
 	// read request
 	reader := bufio.NewReader(conn)
 	request, err := http.ReadRequest(reader)
 	if err != nil {
 		fmt.Println("Reading http request Error:", err)
-		temp := <- channel
-		fmt.Println(temp+"1")
+		sendErrorResponse(conn, 400, "Bad Request(Request cannot be read or parsed)")
 		return
 	}
 	printRequest(request)
@@ -83,12 +82,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 	exePath, err := os.Executable()
 	if err != nil{
 		fmt.Printf("Getting executable path Error: " + err.Error())
-		response := "500 Internal Server Error (Getting executable path Error)"
-		conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n"))
-		conn.Write([]byte("\r\n"))
-		conn.Write([]byte(response))
-		temp := <- channel
-		fmt.Println((temp+"2"))
+		sendErrorResponse(conn, 500, "Internal Server Error (Getting executable path Error)")
 		return
 	}
 
@@ -99,45 +93,24 @@ func handleConnection(conn net.Conn, channel chan string) {
 	// handle request
 	if reqMethod == "GET" {
 		if responseContentType == ""{
-			// File extension not allowed
-			// Respond with 400 "Bad Request" code
-			response := "400 Bad Request"
-			conn.Write([]byte("HTTP/1.1 400 Bad Request\r\n"))
-			conn.Write([]byte("\r\n"))
-			conn.Write([]byte(response))
-			temp := <- channel
-			fmt.Println((temp+"3"))
+			sendErrorResponse(conn, 400, "Bad Request(Extension not supported)")
 			return
 		}
 
 		if fileExists(localFilePath){
 			sendResource(conn, responseContentType, localFilePath)
-			temp := <- channel
-			fmt.Println((temp+"4"))
 			return
 		}else{
-			response := "404 Not Found"
-			conn.Write([]byte("HTTP/1.1 404 Not Found\r\n"))
-			conn.Write([]byte("\r\n"))
-			conn.Write([]byte(response))
-			temp := <- channel
-			fmt.Println((temp+"5"))
+			sendErrorResponse(conn, 404, "Not Found")
 			return
 		}
 	}else if reqMethod == "POST" {
 		// routing
 		fmt.Printf("This is a POST")
 		// process
-		temp := <- channel
-		fmt.Println((temp+"6"))
 		return
 	}else{
-		response := "501 Not Implemented"
-		conn.Write([]byte("HTTP/1.1 501 Not Implemented\r\n"))
-		conn.Write([]byte("\r\n"))
-		conn.Write([]byte(response))
-		temp := <- channel
-		fmt.Println((temp+"7"))
+		sendErrorResponse(conn, 501, "Not Implemented")
 		return // not sure
 	}
 }
@@ -146,7 +119,7 @@ func printRequest(request *http.Request) {
 	reqDump, err := httputil.DumpRequest(request, true)
 	if err != nil {
 		fmt.Println("Dumping request Error:", err)
-		return // not sure
+		return
 	}
 	fmt.Printf("REQUEST:\n%s", string(reqDump))
 }
@@ -161,14 +134,10 @@ func fileExists(filePath string) bool {
 }
 
 func sendResource(conn net.Conn, responseContentType string, localFilePath string) {
-	// open the file
 	fileData, err := ioutil.ReadFile(localFilePath)
 	if err != nil {
 		fmt.Println("Opening file Error: " + err.Error())
-		response := "500 Internal Server Error (Opening file Error)"
-		conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n"))
-		conn.Write([]byte("\r\n"))
-		conn.Write([]byte(response))
+		sendErrorResponse(conn, 500, "Internal Server Error (Opening file Error)")
 		return
 	}
 
@@ -178,4 +147,17 @@ func sendResource(conn net.Conn, responseContentType string, localFilePath strin
 	conn.Write([]byte("\r\n")) // does tcp require \r\n?
 	conn.Write([]byte(responseBody))
 	return
+}
+
+func sendErrorResponse(conn net.Conn, statusCode int, errorMessage string) {
+	responseHeader := fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, errorMessage)
+	responseBody := fmt.Sprintf("%d %s", statusCode, errorMessage)
+	conn.Write([]byte(responseHeader))
+	conn.Write([]byte("\r\n"))
+	conn.Write([]byte(responseBody))
+}
+
+func releaseBufferChannel(channel chan string) {
+	temp := <- channel
+	fmt.Println(temp)
 }
