@@ -27,7 +27,7 @@ func main() {
 	portPtr := flag.Int("port", 8080, "A port that the server listens from")
 	flag.Parse()
 	portConn := *portPtr
-	// listen on a specific port
+
 	listener, err := net.Listen(networkConn, hostConn + ":" + strconv.Itoa(portConn))
 	if err != nil {
 		fmt.Println("Listening Error:", err.Error())
@@ -44,14 +44,13 @@ func main() {
 			fmt.Println("Accepting Error", err.Error())
 			continue
 		}
-		// goroutines maximum 10
 		channel <- "\n ************* A goroutine finished! *************" // this message will be shown before return handleConnection
 		go handleConnection(conn, channel)
 	}	
 }
 
 func handleConnection(conn net.Conn, channel chan string) {
-	defer conn.Close() // TBC: maybe add channel receiving as a callback?
+	defer conn.Close()
 	defer releaseBufferChannel(channel)
 
 	// read request
@@ -90,7 +89,6 @@ func handleConnection(conn net.Conn, channel chan string) {
 	localFilePath := lab1Directory + localDB + fileUrl
 	fmt.Println("localFilePath is: " + localFilePath)
 
-	// handle request
 	if reqMethod == "GET" {
 		if responseContentType == ""{
 			sendErrorResponse(conn, 400, "Bad Request(Extension not supported)")
@@ -111,7 +109,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 		return
 	}else{
 		sendErrorResponse(conn, 501, "Not Implemented")
-		return // not sure
+		return
 	}
 }
 
@@ -144,7 +142,7 @@ func sendResource(conn net.Conn, responseContentType string, localFilePath strin
 	responseBody := fileData
 	conn.Write([]byte("HTTP/1.1 200 OK\r\n"))
 	conn.Write([]byte("Content-Type: " + responseContentType +"\r\n"))
-	conn.Write([]byte("\r\n")) // does tcp require \r\n?
+	conn.Write([]byte("\r\n"))
 	conn.Write([]byte(responseBody))
 	return
 }
