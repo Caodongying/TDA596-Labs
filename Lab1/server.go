@@ -16,7 +16,7 @@ import (
 
 const (
 	networkConn = "tcp"
-	hostConn = "localhost"
+	hostConn = "0.0.0.0"
 	localDB = "/database"
 )
 
