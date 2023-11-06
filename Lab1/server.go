@@ -1,17 +1,17 @@
 package main
 
 import (
-	"os"
-	"net/http/httputil"
+	"bufio"
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
-	"bufio"
-	"strings"
-	"io/ioutil"
+	"net/http/httputil"
+	"os"
 	"path/filepath"
-	"flag"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -23,6 +23,7 @@ const (
 func main() {
 	// create a buffered channel for goroutine limitation
 	channel := make(chan string, 10)
+
 	// read the port number passed from terminal
 	portPtr := flag.Int("port", 8080, "A port that the server listens from")
 	flag.Parse()
@@ -50,8 +51,8 @@ func main() {
 }
 
 func handleConnection(conn net.Conn, channel chan string) {
-	defer conn.Close()
 	defer releaseBufferChannel(channel)
+	defer conn.Close()
 
 	// read request
 	reader := bufio.NewReader(conn)
