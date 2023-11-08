@@ -21,23 +21,24 @@ const (
 	localDB     = "/database"
 )
 
+var serverPort int
+
 func main() {
 	// create a buffered channel for goroutine limitation
 	channel := make(chan string, 10)
 
 	// read the port number passed from terminal
-	portPtr := flag.Int("port", 8080, "A port that the server listens from")
+	serverPort = *(flag.Int("port", 8080, "A port that the server listens from"))
 	flag.Parse()
-	portConn := *portPtr
 
-	listener, err := net.Listen(networkConn, hostConn+":"+strconv.Itoa(portConn))
+	listener, err := net.Listen(networkConn, hostConn + ":" + strconv.Itoa(serverPort))
 	if err != nil {
 		fmt.Println("Listening Error:", err.Error())
 		return
 	}
 	defer listener.Close()
 
-	fmt.Println("Group 6 server is listening on " + hostConn + ":" + strconv.Itoa(portConn))
+	fmt.Println("Group 6 server is listening on " + hostConn + ":" + strconv.Itoa(serverPort))
 
 	// keep accepting connection request
 	for {
@@ -163,7 +164,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 func printRequest(request *http.Request) {
 	reqDump, err := httputil.DumpRequest(request, true)
 	if err != nil {
-		fmt.Println("Dumping request Error:", err)
+		fmt.Println("Dumping request Error:", err.Error())
 		return
 	}
 	fmt.Printf("REQUEST:\n%s", string(reqDump))
