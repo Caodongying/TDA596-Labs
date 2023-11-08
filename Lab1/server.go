@@ -17,8 +17,8 @@ import (
 
 const (
 	networkConn = "tcp"
-	hostConn = "0.0.0.0"
-	localDB = "/database"
+	hostConn    = "0.0.0.0"
+	localDB     = "/database"
 )
 
 func main() {
@@ -30,7 +30,7 @@ func main() {
 	flag.Parse()
 	portConn := *portPtr
 
-	listener, err := net.Listen(networkConn, hostConn + ":" + strconv.Itoa(portConn))
+	listener, err := net.Listen(networkConn, hostConn+":"+strconv.Itoa(portConn))
 	if err != nil {
 		fmt.Println("Listening Error:", err.Error())
 		return
@@ -48,7 +48,7 @@ func main() {
 		}
 		channel <- "\n ************* A goroutine finished! *************" // this message will be shown before return handleConnection
 		go handleConnection(conn, channel)
-	}	
+	}
 }
 
 func handleConnection(conn net.Conn, channel chan string) {
@@ -68,20 +68,20 @@ func handleConnection(conn net.Conn, channel chan string) {
 	// parse request
 	contentTypeMap := map[string]string{
 		"html": "text/html",
-		"txt": "text/plain",
-		"gif": "image/gif",
+		"txt":  "text/plain",
+		"gif":  "image/gif",
 		"jpeg": "image/jpeg",
-		"jpg": "image/jpg",
-		"css": "text/css",
+		"jpg":  "image/jpg",
+		"css":  "text/css",
 	}
 	reqMethod := request.Method
 	fileUrl := request.URL.String()
 	urlSplit := strings.Split(fileUrl, ".")
 	fileExtension := urlSplit[len(urlSplit)-1]
 	responseContentType := contentTypeMap[fileExtension]
-	
+
 	exePath, err := os.Executable()
-	if err != nil{
+	if err != nil {
 		fmt.Printf("Getting executable path Error: " + err.Error())
 		sendErrorResponse(conn, 500, "Internal Server Error (Getting executable path Error)")
 		return
@@ -92,27 +92,27 @@ func handleConnection(conn net.Conn, channel chan string) {
 	fmt.Println("localFilePath is: " + localFilePath)
 
 	if reqMethod == "GET" {
-		if responseContentType == ""{
+		if responseContentType == "" {
 			sendErrorResponse(conn, 400, "Bad Request(Extension not supported)")
 			return
 		}
 
-		if fileExists(localFilePath){
+		if fileExists(localFilePath) {
 			sendResource(conn, responseContentType, localFilePath)
 			return
-		}else{
+		} else {
 			sendErrorResponse(conn, 404, "Not Found")
 			return
 		}
-	}else if reqMethod == "POST" {
+	} else if reqMethod == "POST" {
 		// don't forget to send response before every return
 		// not sure about the error code
 		fmt.Println("Print the form")
 
 		err := request.ParseMultipartForm(32 << 20)
 		if err != nil {
-			fmt.Println("Parsing multipart form Error: " + err.Error())
-			sendErrorResponse(conn, 600, "Parsing multipart form Error")
+			fmt.Println("Payload Too Large: " + err.Error())
+			sendErrorResponse(conn, 413, "Payload Too Large")
 			return
 		}
 
@@ -123,8 +123,8 @@ func handleConnection(conn net.Conn, channel chan string) {
 		for key := range multiForm.File {
 			file, fileHeader, err := request.FormFile(key)
 			if err != nil {
-				fmt.Println("Getting form file Error: " + err.Error())
-				sendErrorResponse(conn, 600, "Getting form file Error")
+				fmt.Println("Bad Request: " + err.Error())
+				sendErrorResponse(conn, 400, "Bad Request")
 				return
 			}
 			defer file.Close()
@@ -133,23 +133,23 @@ func handleConnection(conn net.Conn, channel chan string) {
 			localFilePath := lab1DatabaseDirectory + "/" + fileHeader.Filename
 			out, err := os.Create(localFilePath)
 			if err != nil {
-				fmt.Println("Creating file Error: " + err.Error())
-				sendErrorResponse(conn, 600, "Creating File Error")
+				fmt.Println("Internal Server Error: " + err.Error())
+				sendErrorResponse(conn, 500, "Internal Server Error")
 				return
 			}
 			defer out.Close()
 			_, err = io.Copy(out, file)
 			if err != nil {
-				fmt.Println("Copying file Error: " + err.Error())
-				sendErrorResponse(conn, 600, "Copying File Error")
+				fmt.Println("Internal Server Error: " + err.Error())
+				sendErrorResponse(conn, 500, "Internal Server Error")
 				return
 			}
 			fmt.Printf("File %s is stored successfully!\n", fileHeader.Filename)
 			sendErrorResponse(conn, 666, "File is stored successfully") // not error!!! change function!
 		}
-		
+
 		return
-	}else{
+	} else {
 		sendErrorResponse(conn, 501, "Not Implemented")
 		return
 	}
@@ -183,7 +183,7 @@ func sendResource(conn net.Conn, responseContentType string, localFilePath strin
 
 	responseBody := fileData
 	conn.Write([]byte("HTTP/1.1 200 OK\r\n"))
-	conn.Write([]byte("Content-Type: " + responseContentType +"\r\n"))
+	conn.Write([]byte("Content-Type: " + responseContentType + "\r\n"))
 	conn.Write([]byte("\r\n"))
 	conn.Write([]byte(responseBody))
 	return
@@ -198,6 +198,6 @@ func sendErrorResponse(conn net.Conn, statusCode int, errorMessage string) {
 }
 
 func releaseBufferChannel(channel chan string) {
-	temp := <- channel
+	temp := <-channel
 	fmt.Println(temp)
 }
