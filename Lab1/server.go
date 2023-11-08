@@ -150,7 +150,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 				return
 			}
 			fmt.Printf("File %s is stored successfully!\n", fileName)
-			sendResponse(conn, 200, "OK! The file is stored successfully") // not error!!! change function!
+			sendResponse(conn, 200, "OK! The file is stored successfully")
 		}
 
 		return
