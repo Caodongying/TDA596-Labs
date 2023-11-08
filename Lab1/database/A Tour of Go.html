@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<!-- saved from url=(0031)https://go.dev/tour/moretypes/7 -->
+<html lang="en" ng-app="tour" data-theme="auto" class="ng-scope"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <title>A Tour of Go</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <script>
+      (function() {
+        const theme = document.cookie.match(/prefers-color-scheme=(light|dark|auto)/)?.[1]
+        if (theme) {
+          document.querySelector('html').setAttribute('data-theme', theme);
+        }
+      }())
+    </script>
+    <link rel="stylesheet" href="./A Tour of Go_files/app.css">
+    <link rel="stylesheet" href="./A Tour of Go_files/codemirror.css">
+    <link href="https://fonts.googleapis.com/css?family=Inconsolata" rel="stylesheet" type="text/css">
+    <link rel="icon" href="https://go.dev/images/favicon-gopher.png" sizes="any">
+    <link rel="apple-touch-icon" href="https://go.dev/images/favicon-gopher-plain.png">
+    <link rel="icon" href="https://go.dev/images/favicon-gopher.svg" type="image/svg+xml">
+<style type="text/css">@charset "UTF-8";[ng\:cloak],[ng-cloak],[data-ng-cloak],[x-ng-cloak],.ng-cloak,.x-ng-cloak{display:none;}ng\:form{display:block;}</style></head>
+
+<body data-new-gr-c-s-check-loaded="14.1136.0" data-gr-ext-installed="" data-new-gr-c-s-loaded="14.1136.0">
+    <div class="bar top-bar">
+        <div class="left">
+        <a href="https://go.dev/"><img src="./A Tour of Go_files/go-logo-white.svg" class="gopherlogo"></a>
+        <a class="logo" href="https://go.dev/tour/list">A Tour of Go</a>
+        </div>
+        <div class="right">
+            <button class="header-toggleTheme js-toggleTheme" aria-label="Toggle theme">
+              <img data-value="auto" class="go-Icon go-Icon--inverted" height="24" width="24" src="./A Tour of Go_files/brightness_6_gm_grey_24dp.svg" alt="System theme">
+              <img data-value="dark" class="go-Icon go-Icon--inverted" height="24" width="24" src="./A Tour of Go_files/brightness_2_gm_grey_24dp.svg" alt="Dark theme">
+              <img data-value="light" class="go-Icon go-Icon--inverted" height="24" width="24" src="./A Tour of Go_files/light_mode_gm_grey_24dp.svg" alt="Light theme">
+            </button>
+            <div table-of-contents-button=".toc"><span class="nav" title="Table of Contents">
+	<svg viewBox="0 0 24 24" height="100%" width="100%" preserveAspectRatio="xMidYMid meet" fit="" style="pointer-events: none; display: block;"><g><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"></path></g></svg>
+</span></div>
+            <div feedback-button=""><span class="nav" title="Send feedback about this page">
+	<svg id="feedback-button" viewBox="0 0 24 24" height="100%" width="100%" preserveAspectRatio="xMidYMid meet" fit="" style="pointer-events: none; display: block;"><g><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5c-.49 0-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8zm-6 8h-4v-2h4v2zm0-4h-4v-2h4v2z"></path></g></svg>
+</span></div>
+        </div>
+    </div>
+
+    <div table-of-contents=""><div class="toc">
+    <ul>
+        <!-- ngRepeat: m in toc.modules --><li ng-repeat="m in toc.modules" class="toc-module ng-scope" id="toc-m-mechanics">
+            <span class="ng-binding">Using the tour</span>
+            <ul>
+                <!-- ngRepeat: l in m.lessons --><li ng-repeat="l in m.lessons" class="toc-lesson ng-scope" id="toc-l-welcome" ng-class="{active: l==params.lessonId}">
+                    <span ng-click="toggleLesson(l)" class="ng-binding">Welcome!</span>
+                    <ul>
+                        <!-- ngRepeat: p in m.lesson[l].Pages --><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/welcome/1" ng-click="hideTOC(true)" class="ng-binding">Hello, 世界</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/welcome/2" ng-click="hideTOC(true)" class="ng-binding">Go local</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/welcome/3" ng-click="hideTOC(true)" class="ng-binding">Go offline (optional)</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/welcome/4" ng-click="hideTOC(true)" class="ng-binding">The Go Playground</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/welcome/5" ng-click="hideTOC(true)" class="ng-binding">Congratulations</a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li><li ng-repeat="m in toc.modules" class="toc-module ng-scope" id="toc-m-basics">
+            <span class="ng-binding">Basics</span>
+            <ul>
+                <!-- ngRepeat: l in m.lessons --><li ng-repeat="l in m.lessons" class="toc-lesson ng-scope" id="toc-l-basics" ng-class="{active: l==params.lessonId}">
+                    <span ng-click="toggleLesson(l)" class="ng-binding">Packages, variables, and functions.</span>
+                    <ul>
+                        <!-- ngRepeat: p in m.lesson[l].Pages --><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/1" ng-click="hideTOC(true)" class="ng-binding">Packages</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/2" ng-click="hideTOC(true)" class="ng-binding">Imports</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/3" ng-click="hideTOC(true)" class="ng-binding">Exported names</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/4" ng-click="hideTOC(true)" class="ng-binding">Functions</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/5" ng-click="hideTOC(true)" class="ng-binding">Functions continued</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/6" ng-click="hideTOC(true)" class="ng-binding">Multiple results</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/7" ng-click="hideTOC(true)" class="ng-binding">Named return values</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/8" ng-click="hideTOC(true)" class="ng-binding">Variables</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/9" ng-click="hideTOC(true)" class="ng-binding">Variables with initializers</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/10" ng-click="hideTOC(true)" class="ng-binding">Short variable declarations</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/11" ng-click="hideTOC(true)" class="ng-binding">Basic types</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/12" ng-click="hideTOC(true)" class="ng-binding">Zero values</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/13" ng-click="hideTOC(true)" class="ng-binding">Type conversions</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/14" ng-click="hideTOC(true)" class="ng-binding">Type inference</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/15" ng-click="hideTOC(true)" class="ng-binding">Constants</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/16" ng-click="hideTOC(true)" class="ng-binding">Numeric Constants</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/basics/17" ng-click="hideTOC(true)" class="ng-binding">Congratulations!</a>
+                        </li>
+                    </ul>
+                </li><li ng-repeat="l in m.lessons" class="toc-lesson ng-scope" id="toc-l-flowcontrol" ng-class="{active: l==params.lessonId}">
+                    <span ng-click="toggleLesson(l)" class="ng-binding">Flow control statements: for, if, else, switch and defer</span>
+                    <ul>
+                        <!-- ngRepeat: p in m.lesson[l].Pages --><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/1" ng-click="hideTOC(true)" class="ng-binding">For</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/2" ng-click="hideTOC(true)" class="ng-binding">For continued</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/3" ng-click="hideTOC(true)" class="ng-binding">For is Go's "while"</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/4" ng-click="hideTOC(true)" class="ng-binding">Forever</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/5" ng-click="hideTOC(true)" class="ng-binding">If</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/6" ng-click="hideTOC(true)" class="ng-binding">If with a short statement</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/7" ng-click="hideTOC(true)" class="ng-binding">If and else</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/8" ng-click="hideTOC(true)" class="ng-binding">Exercise: Loops and Functions</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/9" ng-click="hideTOC(true)" class="ng-binding">Switch</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/10" ng-click="hideTOC(true)" class="ng-binding">Switch evaluation order</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/11" ng-click="hideTOC(true)" class="ng-binding">Switch with no condition</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/12" ng-click="hideTOC(true)" class="ng-binding">Defer</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/13" ng-click="hideTOC(true)" class="ng-binding">Stacking defers</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/flowcontrol/14" ng-click="hideTOC(true)" class="ng-binding">Congratulations!</a>
+                        </li>
+                    </ul>
+                </li><li ng-repeat="l in m.lessons" class="toc-lesson ng-scope active" id="toc-l-moretypes" ng-class="{active: l==params.lessonId}">
+                    <span ng-click="toggleLesson(l)" class="ng-binding">More types: structs, slices, and maps.</span>
+                    <ul>
+                        <!-- ngRepeat: p in m.lesson[l].Pages --><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/1" ng-click="hideTOC(true)" class="ng-binding">Pointers</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/2" ng-click="hideTOC(true)" class="ng-binding">Structs</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/3" ng-click="hideTOC(true)" class="ng-binding">Struct Fields</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/4" ng-click="hideTOC(true)" class="ng-binding">Pointers to structs</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/5" ng-click="hideTOC(true)" class="ng-binding">Struct Literals</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/6" ng-click="hideTOC(true)" class="ng-binding">Arrays</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope active" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/7" ng-click="hideTOC(true)" class="ng-binding">Slices</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/8" ng-click="hideTOC(true)" class="ng-binding">Slices are like references to arrays</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/9" ng-click="hideTOC(true)" class="ng-binding">Slice literals</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/10" ng-click="hideTOC(true)" class="ng-binding">Slice defaults</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/11" ng-click="hideTOC(true)" class="ng-binding">Slice length and capacity</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/12" ng-click="hideTOC(true)" class="ng-binding">Nil slices</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/13" ng-click="hideTOC(true)" class="ng-binding">Creating a slice with make</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/14" ng-click="hideTOC(true)" class="ng-binding">Slices of slices</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/15" ng-click="hideTOC(true)" class="ng-binding">Appending to a slice</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/16" ng-click="hideTOC(true)" class="ng-binding">Range</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/17" ng-click="hideTOC(true)" class="ng-binding">Range continued</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/18" ng-click="hideTOC(true)" class="ng-binding">Exercise: Slices</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/19" ng-click="hideTOC(true)" class="ng-binding">Maps</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/20" ng-click="hideTOC(true)" class="ng-binding">Map literals</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/21" ng-click="hideTOC(true)" class="ng-binding">Map literals continued</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/22" ng-click="hideTOC(true)" class="ng-binding">Mutating Maps</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/23" ng-click="hideTOC(true)" class="ng-binding">Exercise: Maps</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/24" ng-click="hideTOC(true)" class="ng-binding">Function values</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/25" ng-click="hideTOC(true)" class="ng-binding">Function closures</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/26" ng-click="hideTOC(true)" class="ng-binding">Exercise: Fibonacci closure</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/moretypes/27" ng-click="hideTOC(true)" class="ng-binding">Congratulations!</a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li><li ng-repeat="m in toc.modules" class="toc-module ng-scope" id="toc-m-methods">
+            <span class="ng-binding">Methods and interfaces</span>
+            <ul>
+                <!-- ngRepeat: l in m.lessons --><li ng-repeat="l in m.lessons" class="toc-lesson ng-scope" id="toc-l-methods" ng-class="{active: l==params.lessonId}">
+                    <span ng-click="toggleLesson(l)" class="ng-binding">Methods and interfaces</span>
+                    <ul>
+                        <!-- ngRepeat: p in m.lesson[l].Pages --><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/1" ng-click="hideTOC(true)" class="ng-binding">Methods</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/2" ng-click="hideTOC(true)" class="ng-binding">Methods are functions</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/3" ng-click="hideTOC(true)" class="ng-binding">Methods continued</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/4" ng-click="hideTOC(true)" class="ng-binding">Pointer receivers</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/5" ng-click="hideTOC(true)" class="ng-binding">Pointers and functions</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/6" ng-click="hideTOC(true)" class="ng-binding">Methods and pointer indirection</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/7" ng-click="hideTOC(true)" class="ng-binding">Methods and pointer indirection (2)</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/8" ng-click="hideTOC(true)" class="ng-binding">Choosing a value or pointer receiver</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/9" ng-click="hideTOC(true)" class="ng-binding">Interfaces</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/10" ng-click="hideTOC(true)" class="ng-binding">Interfaces are implemented implicitly</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/11" ng-click="hideTOC(true)" class="ng-binding">Interface values</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/12" ng-click="hideTOC(true)" class="ng-binding">Interface values with nil underlying values</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/13" ng-click="hideTOC(true)" class="ng-binding">Nil interface values</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/14" ng-click="hideTOC(true)" class="ng-binding">The empty interface</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/15" ng-click="hideTOC(true)" class="ng-binding">Type assertions</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/16" ng-click="hideTOC(true)" class="ng-binding">Type switches</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/17" ng-click="hideTOC(true)" class="ng-binding">Stringers</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/18" ng-click="hideTOC(true)" class="ng-binding">Exercise: Stringers</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/19" ng-click="hideTOC(true)" class="ng-binding">Errors</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/20" ng-click="hideTOC(true)" class="ng-binding">Exercise: Errors</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/21" ng-click="hideTOC(true)" class="ng-binding">Readers</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/22" ng-click="hideTOC(true)" class="ng-binding">Exercise: Readers</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/23" ng-click="hideTOC(true)" class="ng-binding">Exercise: rot13Reader</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/24" ng-click="hideTOC(true)" class="ng-binding">Images</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/25" ng-click="hideTOC(true)" class="ng-binding">Exercise: Images</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/methods/26" ng-click="hideTOC(true)" class="ng-binding">Congratulations!</a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li><li ng-repeat="m in toc.modules" class="toc-module ng-scope" id="toc-m-generics">
+            <span class="ng-binding">Generics</span>
+            <ul>
+                <!-- ngRepeat: l in m.lessons --><li ng-repeat="l in m.lessons" class="toc-lesson ng-scope" id="toc-l-generics" ng-class="{active: l==params.lessonId}">
+                    <span ng-click="toggleLesson(l)" class="ng-binding">Generics</span>
+                    <ul>
+                        <!-- ngRepeat: p in m.lesson[l].Pages --><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/generics/1" ng-click="hideTOC(true)" class="ng-binding">Type parameters</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/generics/2" ng-click="hideTOC(true)" class="ng-binding">Generic types</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/generics/3" ng-click="hideTOC(true)" class="ng-binding">Congratulations!</a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li><li ng-repeat="m in toc.modules" class="toc-module ng-scope" id="toc-m-concurrency">
+            <span class="ng-binding">Concurrency</span>
+            <ul>
+                <!-- ngRepeat: l in m.lessons --><li ng-repeat="l in m.lessons" class="toc-lesson ng-scope" id="toc-l-concurrency" ng-class="{active: l==params.lessonId}">
+                    <span ng-click="toggleLesson(l)" class="ng-binding">Concurrency</span>
+                    <ul>
+                        <!-- ngRepeat: p in m.lesson[l].Pages --><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/1" ng-click="hideTOC(true)" class="ng-binding">Goroutines</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/2" ng-click="hideTOC(true)" class="ng-binding">Channels</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/3" ng-click="hideTOC(true)" class="ng-binding">Buffered Channels</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/4" ng-click="hideTOC(true)" class="ng-binding">Range and Close</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/5" ng-click="hideTOC(true)" class="ng-binding">Select</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/6" ng-click="hideTOC(true)" class="ng-binding">Default Selection</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/7" ng-click="hideTOC(true)" class="ng-binding">Exercise: Equivalent Binary Trees</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/8" ng-click="hideTOC(true)" class="ng-binding">Exercise: Equivalent Binary Trees</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/9" ng-click="hideTOC(true)" class="ng-binding">sync.Mutex</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/10" ng-click="hideTOC(true)" class="ng-binding">Exercise: Web Crawler</a>
+                        </li><li ng-repeat="p in m.lesson[l].Pages" class="toc-page ng-scope" ng-class="{active: l==params.lessonId &amp;&amp; $index+1==params.pageNumber}" style="display: none;">
+                            <a href="https://go.dev/tour/concurrency/11" ng-click="hideTOC(true)" class="ng-binding">Where to Go from here...</a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <div class="click-catcher" ng-click="hideTOC(false)"></div>
+</div>
+</div>
+
+    <div ng-view="" class=""><div id="editor-container" onpageup="prevPage()" onpagedown="nextPage()" class="ng-scope" tabindex="0">
+    <div class="relative-content" ng-="">
+        <div vertical-slide="" left="#left-side" right="#right-side"></div>
+        <div id="left-side">
+            <div class="relative-content" autofocus="toc.lessons[lessonId].Pages[curPage-1].Files.length==0" tabindex="0">
+                <div class="slide-content ng-binding" ng-bind-html-unsafe="toc.lessons[lessonId].Pages[curPage-1].Content">
+  <h2>Slices</h2>
+  
+  
+  <p>
+    An array has a fixed size.
+
+
+    A slice, on the other hand, is a dynamically-sized,
+
+
+    flexible view into the elements of an array.
+
+
+    In practice, slices are much more common than arrays.
+  </p>
+  
+
+  
+  <p>
+    The type <code>[]T</code> is a slice with elements of type <code>T</code>.
+  </p>
+  
+
+  
+  <p>
+    A slice is formed by specifying two indices, a low and
+
+
+    high bound, separated by a colon:
+  </p>
+  
+
+  
+  <pre>a[low : high]</pre>
+  
+
+  
+  <p>
+    This selects a half-open range which includes the first
+
+
+    element, but excludes the last one.
+  </p>
+  
+
+  
+  <p>
+    The following expression creates a slice which includes
+
+
+    elements 1 through 3 of <code>a</code>:
+  </p>
+  
+
+  
+  <pre>a[1:4]</pre>
+  
+
+	
+		
+	
+
+</div>
+
+                <div class="bar module-bar">
+                    <a href="https://go.dev/tour/moretypes/7#" class="prev-page" ng-click="prevPageClick($event)">&lt;</a>
+                    <span class="ng-binding">7/27</span>
+                    <a href="https://go.dev/tour/moretypes/7#" class="next-page" ng-click="nextPageClick($event)">&gt;</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="right-side" class="relative-content">
+            <div id="explorer" ng-class="{hidden: toc.lessons[lessonId].Pages[curPage-1].Files.length==0}">
+                <!-- ngRepeat: f in toc.lessons[lessonId].Pages[curPage-1].Files --><a class="menu-button ng-scope ng-binding active" ng-repeat="f in toc.lessons[lessonId].Pages[curPage-1].Files" ng-click="openFile($index)" ng-class="{active: $index==curFile}">slices.go</a>
+                <a syntax-checkbox="" ng-class="{active: editor.syntax}" class="menu-button syntax-checkbox active">Syntax</a>
+                <a imports-checkbox="" ng-class="{active: editor.imports}" class="menu-button imports-checkbox">Imports</a>
+            </div>
+
+            <div class="relative-content" ng-class="{hidden: toc.lessons[lessonId].Pages[curPage-1].Files.length==0}">
+
+                <div id="top-part">
+                    <div class="relative-content">
+                        <div id="file-editor">
+                            <textarea ui-codemirror="" ng-model="toc.lessons[lessonId].Pages[curPage-1].Files[curFile].Content" class="ng-valid ng-dirty" style="display: none;"></textarea><div class="CodeMirror cm-s-default CodeMirror-wrap CodeMirror-focused"><div style="overflow: hidden; position: relative; width: 3px; height: 0px; top: 138.312px; left: 85px;"><textarea autocorrect="off" autocapitalize="off" spellcheck="false" style="position: absolute; bottom: -1em; padding: 0px; width: 1000px; height: 1em; outline: none;" tabindex="0"></textarea></div><div class="CodeMirror-vscrollbar" cm-not-content="true" style="width: 18px; pointer-events: none;"><div style="min-width: 1px; height: 0px;"></div></div><div class="CodeMirror-hscrollbar" cm-not-content="true" style="height: 18px; pointer-events: none;"><div style="height: 100%; min-height: 1px; width: 0px;"></div></div><div class="CodeMirror-scrollbar-filler" cm-not-content="true"></div><div class="CodeMirror-gutter-filler" cm-not-content="true"></div><div class="CodeMirror-scroll" tabindex="-1"><div class="CodeMirror-sizer" style="margin-left: 33px; margin-bottom: 0px; border-right-width: 30px; min-height: 200px; padding-right: 0px; padding-bottom: 0px;"><div style="position: relative; top: 0px;"><div class="CodeMirror-lines" role="presentation"><div role="presentation" style="position: relative; outline: none;"><div class="CodeMirror-measure"><pre>x</pre><div class="CodeMirror-linenumber CodeMirror-gutter-elt"><div>9</div></div><div class="CodeMirror-linenumber CodeMirror-gutter-elt"><div>10</div></div></div><div class="CodeMirror-measure"></div><div style="position: relative; z-index: 1;"></div><div class="CodeMirror-cursors" style=""><div class="CodeMirror-cursor" style="left: 52px; top: 134.312px; height: 19.1875px;">&nbsp;</div></div><div class="CodeMirror-code" role="presentation" style=""><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">1</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span class="cm-keyword">package</span> <span class="cm-variable">main</span></span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">2</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span cm-text="">​</span></span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">3</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span class="cm-keyword">import</span> <span class="cm-string">"fmt"</span></span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">4</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span cm-text="">​</span></span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">5</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span class="cm-keyword">func</span> <span class="cm-variable">main</span>() {</span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">6</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span class="cm-tab" role="presentation" cm-text="	">    </span><span class="cm-variable">fileName</span> :<span class="cm-operator">=</span> <span class="cm-string">"localhost:1234/group6"</span></span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">7</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span class="cm-tab" role="presentation" cm-text="	">    </span><span class="cm-variable">strings</span><span class="cm-number">.</span><span class="cm-variable">Split</span>(<span class="cm-variable">fileName</span>, <span class="cm-string">"."</span>)</span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">8</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span class="cm-tab" role="presentation" cm-text="	">    </span><span class="cm-variable">fm</span></span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">9</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;">}</span></pre></div><div style="position: relative;"><div class="CodeMirror-gutter-wrapper" style="left: -33px;"><div class="CodeMirror-linenumber CodeMirror-gutter-elt" style="left: 0px; width: 21px;">10</div></div><pre class=" CodeMirror-line " role="presentation"><span role="presentation" style="padding-right: 0.1px;"><span cm-text="">​</span></span></pre></div></div></div></div></div></div><div style="position: absolute; height: 30px; width: 1px; border-bottom: 0px solid transparent; top: 200px;"></div><div class="CodeMirror-gutters" style="height: 230px;"><div class="CodeMirror-gutter CodeMirror-linenumbers" style="width: 29px;"></div></div></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div horizontal-slide="" top="#top-part" bottom="#bottom-part"></div>
+
+                <div id="bottom-part">
+                    <div class="relative-content">
+                        <!--div id="file-menu" ng-controller="OutputCtrl"-->
+                        <div id="file-menu">
+                            <a ng-show="job == null" class="menu-button" id="run" ng-click="run()" style="display: none;">Run</a>
+                            <a ng-show="job != null" class="menu-button" id="kill" ng-click="kill()" style="">Kill</a>
+                            <a class="menu-button" id="format" ng-click="format()">Format</a>
+                            <a class="menu-button" id="reset" ng-click="reset()">Reset</a>
+                        </div>
+
+                        <!-- ngRepeat: f in toc.lessons[lessonId].Pages[curPage-1].Files --><div class="output ng-scope ng-binding active" ng-repeat="f in toc.lessons[lessonId].Pages[curPage-1].Files" ng-class="{active: $index==curFile}" ng-bind-html-unsafe="f.Output"><pre class="info"><span class="stderr">./prog.go:7:21: invalid argument: index -1 (constant of type int) must not be negative
+</span><span class="system">
+Go build failed.</span></pre></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+</div>
+
+    <script src="./A Tour of Go_files/script.js"></script>
+
+
+
+</body><grammarly-desktop-integration data-grammarly-shadow-root="true"><template shadowrootmode="open"><style>
+      div.grammarly-desktop-integration {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select:none;
+        user-select:none;
+      }
+
+      div.grammarly-desktop-integration:before {
+        content: attr(data-content);
+      }
+    </style><div aria-label="grammarly-integration" role="group" tabindex="-1" class="grammarly-desktop-integration" data-content="{&quot;mode&quot;:&quot;full&quot;,&quot;isActive&quot;:true,&quot;isUserDisabled&quot;:false}"></div></template></grammarly-desktop-integration></html>

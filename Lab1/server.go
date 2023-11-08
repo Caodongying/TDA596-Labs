@@ -66,19 +66,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 	printRequest(request)
 
 	// parse request
-	contentTypeMap := map[string]string{
-		"html": "text/html",
-		"txt": "text/plain",
-		"gif": "image/gif",
-		"jpeg": "image/jpeg",
-		"jpg": "image/jpg",
-		"css": "text/css",
-	}
 	reqMethod := request.Method
-	fileUrl := request.URL.String()
-	urlSplit := strings.Split(fileUrl, ".")
-	fileExtension := urlSplit[len(urlSplit)-1]
-	responseContentType := contentTypeMap[fileExtension]
 	
 	exePath, err := os.Executable()
 	if err != nil{
@@ -88,12 +76,16 @@ func handleConnection(conn net.Conn, channel chan string) {
 	}
 
 	lab1DatabaseDirectory := filepath.Dir(exePath) + localDB
-	localFilePath := lab1DatabaseDirectory + fileUrl
-	fmt.Println("localFilePath is: " + localFilePath)
+
 
 	if reqMethod == "GET" {
+		fileUrl := request.URL.String()
+		responseContentType := checkExtension(fileUrl)
+		localFilePath := lab1DatabaseDirectory + fileUrl
+		fmt.Println("localFilePath is: " + localFilePath)
+
 		if responseContentType == ""{
-			sendErrorResponse(conn, 400, "Bad Request(Extension not supported)")
+			sendErrorResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")
 			return
 		}
 
@@ -118,6 +110,11 @@ func handleConnection(conn net.Conn, channel chan string) {
 
 		multiForm := request.MultipartForm
 
+		if len(multiForm.File) == 0 {
+			sendErrorResponse(conn, 400, "Bad Request(No file provided)")
+			return
+		}
+
 		// see if multiForm is empty
 		// Todo
 		for key := range multiForm.File {
@@ -128,9 +125,19 @@ func handleConnection(conn net.Conn, channel chan string) {
 				return
 			}
 			defer file.Close()
-			fmt.Println("Filename is: " + fileHeader.Filename)
+
+			fileName := fileHeader.Filename
+			fmt.Println("Filename is: " + fileName)
+
+			// extension check
+			fileExtensionCheck := checkExtension(fileName)
+			if fileExtensionCheck == "" {
+				sendErrorResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")
+				return
+			}
+
 			// Store the file
-			localFilePath := lab1DatabaseDirectory + "/" + fileHeader.Filename
+			localFilePath := lab1DatabaseDirectory + "/" + fileName
 			out, err := os.Create(localFilePath)
 			if err != nil {
 				fmt.Println("Creating file Error: " + err.Error())
@@ -144,7 +151,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 				sendErrorResponse(conn, 600, "Copying File Error")
 				return
 			}
-			fmt.Printf("File %s is stored successfully!\n", fileHeader.Filename)
+			fmt.Printf("File %s is stored successfully!\n", fileName)
 			sendErrorResponse(conn, 666, "File is stored successfully") // not error!!! change function!
 		}
 		
@@ -200,4 +207,22 @@ func sendErrorResponse(conn net.Conn, statusCode int, errorMessage string) {
 func releaseBufferChannel(channel chan string) {
 	temp := <- channel
 	fmt.Println(temp)
+}
+
+func checkExtension(fileName string) string{
+	// Used to check the validation of extension
+	// or to get the responseType
+	contentTypeMap := map[string]string{
+		"html": "text/html",
+		"txt": "text/plain",
+		"gif": "image/gif",
+		"jpeg": "image/jpeg",
+		"jpg": "image/jpg",
+		"css": "text/css",
+	}
+
+	nameSplit := strings.Split(fileName, ".")
+	fileExtension := nameSplit[len(nameSplit)-1]
+	responseContentType := contentTypeMap[fileExtension]
+	return responseContentType
 }
