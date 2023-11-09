@@ -17,9 +17,6 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# Go workspace file
-go.work
-
 /Lab1/http_server
 /Lab1/http_server.exe
 /Lab1/new_files_for_post
