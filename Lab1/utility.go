@@ -12,9 +12,8 @@ const (
 	HostConn    = "0.0.0.0"
 )
 
-var ServerPort int = 8080 // can't be here!
-
 func PrintRequest(request *http.Request) {
+	fmt.Println("We're now in PrintRequest !!!")
 	reqDump, err := httputil.DumpRequest(request, true)
 	if err != nil {
 		fmt.Println("Dumping request Error:", err.Error())

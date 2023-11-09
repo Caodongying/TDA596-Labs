@@ -24,21 +24,23 @@ func main() {
 	channel := make(chan string, 10)
 
 	// read the port number passed from terminal
-	utility.ServerPort = *(flag.Int("port", 8080, "A port that the server listens from"))
+	serverPortPointer := flag.Int("port", 8080, "A port that the server listens from")
 	flag.Parse()
+	serverPort := *serverPortPointer
 
-	listener, err := net.Listen(utility.NetworkConn, utility.HostConn+":"+strconv.Itoa(utility.ServerPort))
+	listener, err := net.Listen(utility.NetworkConn, utility.HostConn+":"+strconv.Itoa(serverPort))
 	if err != nil {
 		fmt.Println("Listening Error:", err.Error())
 		return
 	}
 	defer listener.Close()
 
-	fmt.Println("Group 6 server is listening on " + utility.HostConn + ":" + strconv.Itoa(utility.ServerPort))
+	fmt.Println("Group 6 server is listening on " + utility.HostConn + ":" + strconv.Itoa(serverPort))
 
 	// keep accepting connection request
 	for {
 		conn, err := listener.Accept()
+		fmt.Println("Heyyyyyy Server is Listening!!!")
 		if err != nil {
 			fmt.Println("Accepting Error", err.Error())
 			continue
@@ -49,12 +51,15 @@ func main() {
 }
 
 func handleConnection(conn net.Conn, channel chan string) {
+	fmt.Printf("We're now in handleConnection in server.go")
 	defer utility.ReleaseBufferChannel(channel)
 	defer conn.Close()
 
 	// read request
 	reader := bufio.NewReader(conn)
+
 	request, err := http.ReadRequest(reader)
+	fmt.Printf("Test with request: %v", request)
 	if err != nil {
 		fmt.Println("Reading http request Error:", err)
 		utility.SendResponse(conn, 400, "Bad Request(Request cannot be read or parsed)")
