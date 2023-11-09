@@ -5,14 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	utility "mod_utility"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
 	"strings"
-)
 
+	"utility.com/utility"
+)
 
 func main() {
 	// create a buffered channel for goroutine limitation
@@ -22,7 +22,6 @@ func main() {
 	proxyPortPointer := flag.Int("port", 8070, "A port that the server listens from")
 	flag.Parse()
 	proxyPort := *proxyPortPointer
-
 
 	listener, err := net.Listen(utility.NetworkConn, utility.HostConn+":"+strconv.Itoa(proxyPort))
 	if err != nil {
@@ -64,7 +63,7 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 	serverPort := getPort(request.URL.String())
 
 	if reqMethod == "GET" {
-		connAsClient, err := net.Dial(utility.NetworkConn, utility.HostConn+":" + serverPort)
+		connAsClient, err := net.Dial(utility.NetworkConn, utility.HostConn+":"+serverPort)
 		if err != nil {
 			fmt.Println("Dialing Error: ", err.Error())
 			fmt.Println("ServerPort is ", serverPort)
@@ -106,7 +105,6 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 		// 	return
 		// }
 		// utility.PrintRequest(request)
-	
 
 	} else {
 		utility.SendResponse(connAsServer, 501, "Not Implemented")
@@ -128,8 +126,8 @@ func removeAddress(request string) string {
 	requestSplit := strings.Split(request, " ")
 	urlSplit := strings.Split(requestSplit[1], "/")
 	fileName := urlSplit[len(urlSplit)-1]
-	var result string 
-	for i, val := range requestSplit{
+	var result string
+	for i, val := range requestSplit {
 		if i == 0 {
 			result += val + " /" + fileName
 			continue
