@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"bufio"
@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,29 +15,25 @@ import (
 )
 
 const (
-	NetworkConn = "tcp"
-	HostConn    = "0.0.0.0"
-	localDB     = "/database"
+	localDB = "/database"
 )
-
-var ServerPort int
 
 func main() {
 	// create a buffered channel for goroutine limitation
 	channel := make(chan string, 10)
 
 	// read the port number passed from terminal
-	ServerPort = *(flag.Int("port", 8080, "A port that the server listens from"))
+	utility.ServerPort = *(flag.Int("port", 8080, "A port that the server listens from"))
 	flag.Parse()
 
-	listener, err := net.Listen(NetworkConn, HostConn+":"+strconv.Itoa(ServerPort))
+	listener, err := net.Listen(utility.NetworkConn, utility.HostConn+":"+strconv.Itoa(utility.ServerPort))
 	if err != nil {
 		fmt.Println("Listening Error:", err.Error())
 		return
 	}
 	defer listener.Close()
 
-	fmt.Println("Group 6 server is listening on " + HostConn + ":" + strconv.Itoa(ServerPort))
+	fmt.Println("Group 6 server is listening on " + utility.HostConn + ":" + strconv.Itoa(utility.ServerPort))
 
 	// keep accepting connection request
 	for {
@@ -53,7 +48,7 @@ func main() {
 }
 
 func handleConnection(conn net.Conn, channel chan string) {
-	defer ReleaseBufferChannel(channel)
+	defer utility.ReleaseBufferChannel(channel)
 	defer conn.Close()
 
 	// read request
@@ -61,10 +56,10 @@ func handleConnection(conn net.Conn, channel chan string) {
 	request, err := http.ReadRequest(reader)
 	if err != nil {
 		fmt.Println("Reading http request Error:", err)
-		SendResponse(conn, 400, "Bad Request(Request cannot be read or parsed)")
+		utility.SendResponse(conn, 400, "Bad Request(Request cannot be read or parsed)")
 		return
 	}
-	PrintRequest(request)
+	utility.PrintRequest(request)
 
 	// parse request
 	reqMethod := request.Method
@@ -72,7 +67,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 	exePath, err := os.Executable()
 	if err != nil {
 		fmt.Printf("Getting executable path Error: " + err.Error())
-		SendResponse(conn, 500, "Internal Server Error (Getting executable path Error)")
+		utility.SendResponse(conn, 500, "Internal Server Error (Getting executable path Error)")
 		return
 	}
 
@@ -85,7 +80,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 		fmt.Println("localFilePath is: " + localFilePath)
 
 		if responseContentType == "" {
-			SendResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")
+			utility.SendResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")
 			return
 		}
 
@@ -93,7 +88,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 			sendResource(conn, responseContentType, localFilePath)
 			return
 		} else {
-			SendResponse(conn, 404, "Not Found")
+			utility.SendResponse(conn, 404, "Not Found")
 			return
 		}
 	} else if reqMethod == "POST" {
@@ -104,14 +99,14 @@ func handleConnection(conn net.Conn, channel chan string) {
 		err := request.ParseMultipartForm(32 << 20)
 		if err != nil {
 			fmt.Println("Payload Too Large: " + err.Error())
-			SendResponse(conn, 413, "Payload Too Large")
+			utility.SendResponse(conn, 413, "Payload Too Large")
 			return
 		}
 
 		multiForm := request.MultipartForm
 
 		if len(multiForm.File) == 0 {
-			SendResponse(conn, 400, "Bad Request(No file provided)")
+			utility.SendResponse(conn, 400, "Bad Request(No file provided)")
 			return
 		}
 
@@ -119,7 +114,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 			file, fileHeader, err := request.FormFile(key)
 			if err != nil {
 				fmt.Println("Bad Request: " + err.Error())
-				SendResponse(conn, 400, "Bad Request")
+				utility.SendResponse(conn, 400, "Bad Request")
 				return
 			}
 			defer file.Close()
@@ -130,7 +125,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 			// extension check
 			fileExtensionCheck := checkExtension(fileName)
 			if fileExtensionCheck == "" {
-				SendResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")
+				utility.SendResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")
 				return
 			}
 
@@ -139,35 +134,35 @@ func handleConnection(conn net.Conn, channel chan string) {
 			out, err := os.Create(localFilePath)
 			if err != nil {
 				fmt.Println("Internal Server Error: " + err.Error())
-				SendResponse(conn, 500, "Internal Server Error")
+				utility.SendResponse(conn, 500, "Internal Server Error")
 				return
 			}
 			defer out.Close()
 			_, err = io.Copy(out, file)
 			if err != nil {
 				fmt.Println("Internal Server Error: " + err.Error())
-				SendResponse(conn, 500, "Internal Server Error")
+				utility.SendResponse(conn, 500, "Internal Server Error")
 				return
 			}
 			fmt.Printf("File %s is stored successfully!\n", fileName)
-			SendResponse(conn, 200, "OK! The file is stored successfully")
+			utility.SendResponse(conn, 200, "OK! The file is stored successfully")
 		}
 
 		return
 	} else {
-		SendResponse(conn, 501, "Not Implemented")
+		utility.SendResponse(conn, 501, "Not Implemented")
 		return
 	}
 }
 
-func PrintRequest(request *http.Request) {
-	reqDump, err := httputil.DumpRequest(request, true)
-	if err != nil {
-		fmt.Println("Dumping request Error:", err.Error())
-		return
-	}
-	fmt.Printf("REQUEST:\n%s", string(reqDump))
-}
+// func PrintRequest(request *http.Request) {
+// 	reqDump, err := httputil.DumpRequest(request, true)
+// 	if err != nil {
+// 		fmt.Println("Dumping request Error:", err.Error())
+// 		return
+// 	}
+// 	fmt.Printf("REQUEST:\n%s", string(reqDump))
+// }
 
 func fileExists(filePath string) bool {
 	// Validates if the file exists or not
@@ -182,7 +177,7 @@ func sendResource(conn net.Conn, responseContentType string, localFilePath strin
 	fileData, err := ioutil.ReadFile(localFilePath)
 	if err != nil {
 		fmt.Println("Opening file Error: " + err.Error())
-		SendResponse(conn, 500, "Internal Server Error (Opening file Error)")
+		utility.SendResponse(conn, 500, "Internal Server Error (Opening file Error)")
 		return
 	}
 
@@ -194,18 +189,18 @@ func sendResource(conn net.Conn, responseContentType string, localFilePath strin
 	return
 }
 
-func SendResponse(conn net.Conn, statusCode int, responseMessage string) {
-	responseHeader := fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, responseMessage)
-	responseBody := fmt.Sprintf("%d %s", statusCode, responseMessage)
-	conn.Write([]byte(responseHeader))
-	conn.Write([]byte("\r\n"))
-	conn.Write([]byte(responseBody))
-}
+// func SendResponse(conn net.Conn, statusCode int, responseMessage string) {
+// 	responseHeader := fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, responseMessage)
+// 	responseBody := fmt.Sprintf("%d %s", statusCode, responseMessage)
+// 	conn.Write([]byte(responseHeader))
+// 	conn.Write([]byte("\r\n"))
+// 	conn.Write([]byte(responseBody))
+// }
 
-func ReleaseBufferChannel(channel chan string) {
-	temp := <-channel
-	fmt.Println(temp)
-}
+// func ReleaseBufferChannel(channel chan string) {
+// 	temp := <-channel
+// 	fmt.Println(temp)
+// }
 
 func checkExtension(fileName string) string {
 	// Used to check the validation of extension
