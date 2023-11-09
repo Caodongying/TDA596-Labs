@@ -17,10 +17,10 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-/Lab1/proxy/proxy
-/Lab1/server/server
-/Lab1/proxy/proxy.exe
-/Lab1/server/server.exe
+# /Lab1/proxy/proxy
+# /Lab1/server/server
+# /Lab1/proxy/proxy.exe
+# /Lab1/server/server.exe
 
 
 
