@@ -64,7 +64,7 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 	if reqMethod == "GET" {
 		connAsClient, err := net.Dial(utility.NetworkConn, utility.HostConn+":"+strconv.Itoa(utility.ServerPort))
 		if err != nil {
-			fmt.Println("Dialing Error", err.Error())
+			fmt.Println("Dialing Error: ", err.Error())
 			utility.SendResponse(connAsServer, 500, "Internal Server Error (Proxy cannot dial)")
 			return
 		}
@@ -82,14 +82,24 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 			utility.SendResponse(connAsServer, 500, "Internal Server Error (Forwarding request error)")
 			return
 		}
+		fmt.Println("We have forwarded it!")
 
-		// Read the echoed data back from the server
-		// buf := make([]byte, len(data))
-		// if _, err := io.ReadFull(conn, buf); err != nil {
-		// 	fmt.Println("Error reading data:", err)
+		// Read the data from the server
+		readerAsClient := bufio.NewReader(connAsClient)
+		data, err := io.ReadAll(readerAsClient)
+		if err != nil {
+			utility.SendResponse(connAsServer, 500, "Internal Server Error (Cannot read data from server)")
+		}
+		connAsServer.Write([]byte(data))
+
+		// request, err := http.ReadRequest(readerAsClient)
+		// if err != nil {
+		// 	fmt.Println("Reading http request Error:", err)
+		// 	utility.SendResponse(connAsServer, 400, "Bad Request(Request cannot be read or parsed)")
 		// 	return
 		// }
-		/////
+		// utility.PrintRequest(request)
+	
 
 	} else {
 		utility.SendResponse(connAsServer, 501, "Not Implemented")
