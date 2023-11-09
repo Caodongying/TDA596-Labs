@@ -1,4 +1,4 @@
-package main
+package proxy
 
 import (
 	"bufio"
@@ -10,6 +10,8 @@ import (
 	"net/http/httputil"
 	"strconv"
 	"strings"
+
+	"../server"
 )
 
 var proxyPort int
@@ -21,15 +23,15 @@ func main() {
 	// read the port number passed from terminal
 	proxyPort = *(flag.Int("port", 8070, "A port that the server listens from"))
 	flag.Parse()
-	
-	listener, err := net.Listen(networkConn, hostConn+":"+strconv.Itoa(proxyPort))
+
+	listener, err := net.Listen(server.NetworkConn, server.HostConn+":"+strconv.Itoa(proxyPort))
 	if err != nil {
 		fmt.Println("Listening Error:", err.Error())
 		return
 	}
 	defer listener.Close()
 
-	fmt.Println("Proxy server is listening on " + hostConn + ":" + strconv.Itoa(proxyPort))
+	fmt.Println("Proxy server is listening on " + server.HostConn + ":" + strconv.Itoa(proxyPort))
 
 	// keep accepting connection request
 	for {
@@ -44,7 +46,7 @@ func main() {
 }
 
 func handleProxyConnection(connAsServer net.Conn, channel chan string) {
-	defer releaseBufferChannel(channel)
+	defer server.ReleaseBufferChannel(channel)
 	defer connAsServer.Close()
 
 	// read request
@@ -52,19 +54,19 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 	request, err := http.ReadRequest(reader)
 	if err != nil {
 		fmt.Println("Reading http request Error:", err)
-		sendResponse(connAsServer, 400, "Bad Request(Request cannot be read or parsed)")
+		server.SendResponse(connAsServer, 400, "Bad Request(Request cannot be read or parsed)")
 		return
 	}
-	printRequest(request)
+	server.PrintRequest(request)
 
 	// parse request
 	reqMethod := request.Method
 
 	if reqMethod == "GET" {
-		connAsClient, err := net.Dial(networkConn, hostConn + ":" + strconv.Itoa(serverPort))
+		connAsClient, err := net.Dial(server.NetworkConn, server.HostConn+":"+strconv.Itoa(server.ServerPort))
 		if err != nil {
 			fmt.Println("Dialing Error", err.Error())
-			sendResponse(connAsServer, 500, "Internal Server Error (Proxy cannot dial)")
+			server.SendResponse(connAsServer, 500, "Internal Server Error (Proxy cannot dial)")
 			return
 		}
 		defer connAsClient.Close()
@@ -72,13 +74,13 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 		// Forward the request
 		reqDump, err := httputil.DumpRequest(request, true)
 		if err != nil {
-			fmt.Println("Dumping Request Error:",  err.Error())
-			sendResponse(connAsServer, 500, "Internal Server Error (Cannot dump request)")
+			fmt.Println("Dumping Request Error:", err.Error())
+			server.SendResponse(connAsServer, 500, "Internal Server Error (Cannot dump request)")
 			return
 		}
 		if _, err := io.Copy(connAsClient, strings.NewReader(string(reqDump))); err != nil {
 			fmt.Println("Forwarding request Error:", err)
-			sendResponse(connAsServer, 500, "Internal Server Error (Forwarding request error)")
+			server.SendResponse(connAsServer, 500, "Internal Server Error (Forwarding request error)")
 			return
 		}
 
@@ -91,7 +93,7 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 		/////
 
 	} else {
-		sendResponse(connAsServer, 501, "Not Implemented")
+		server.SendResponse(connAsServer, 501, "Not Implemented")
 		return
 	}
 }
