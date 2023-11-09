@@ -5,12 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	utility "mod_utility"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
 	"strings"
-	"utility"
 )
 
 var proxyPort int
