@@ -17,9 +17,10 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-/Lab1/http_server
-/Lab1/http_server.exe
-/Lab1/new_files_for_post
+/Lab1/proxy/proxy
+/Lab1/server/server
+/Lab1/proxy/proxy.exe
+/Lab1/server/server.exe
 
 
 
