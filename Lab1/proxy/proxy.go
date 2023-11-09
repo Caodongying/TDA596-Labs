@@ -74,10 +74,10 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 
 		// Forward the request
 		reqDump, err := httputil.DumpRequest(request, true)
-		fmt.Println("request from the user(curl) is: " + string(reqDump))
+
 		// Process the request from the user
 		requestToServer := removeAddress(string(reqDump))
-		fmt.Println("requestToServer: ", requestToServer)
+
 		if err != nil {
 			fmt.Println("Dumping Request Error:", err.Error())
 			utility.SendResponse(connAsServer, 500, "Internal Server Error (Cannot dump request)")
@@ -88,7 +88,6 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 			utility.SendResponse(connAsServer, 500, "Internal Server Error (Forwarding request error)")
 			return
 		}
-		fmt.Println("We have forwarded it!")
 
 		// Read the data from the server
 		readerAsClient := bufio.NewReader(connAsClient)
@@ -98,14 +97,6 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 		}
 		connAsServer.Write([]byte(data))
 
-		// request, err := http.ReadRequest(readerAsClient)
-		// if err != nil {
-		// 	fmt.Println("Reading http request Error:", err)
-		// 	utility.SendResponse(connAsServer, 400, "Bad Request(Request cannot be read or parsed)")
-		// 	return
-		// }
-		// utility.PrintRequest(request)
-
 	} else {
 		utility.SendResponse(connAsServer, 501, "Not Implemented")
 		return
@@ -114,9 +105,6 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 
 func getPort(url string) string {
 	urlSplit := strings.Split(url, ":")
-	// for _, item := range urlSplit {
-	// 	fmt.Println("The url split by : is " + item)
-	// }
 	port := strings.Split(urlSplit[2], "/")[0]
 	fmt.Println("Port is " + port)
 	return port
