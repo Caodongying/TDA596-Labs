@@ -21,10 +21,10 @@ const (
 )
 
 func main() {
-	// create a buffered channel for goroutine limitation
+	// Create a buffered channel for goroutine limitation
 	channel := make(chan string, 10)
 
-	// read the port number passed from terminal
+	// Read the port number passed from terminal
 	serverPortPointer := flag.Int("port", 8080, "A port that the server listens from")
 	flag.Parse()
 	serverPort := *serverPortPointer
@@ -38,14 +38,15 @@ func main() {
 
 	fmt.Println("Group 6 server is listening on " + utility.HostConn + ":" + strconv.Itoa(serverPort))
 
-	// keep accepting connection request
+	// Keep accepting connection request
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Accepting Error", err.Error())
 			continue
 		}
-		channel <- "\n ************* A goroutine finished! *************" // this message will be shown before return handleConnection
+		// Channel message will be shown only before the return of handleConnection
+		channel <- "\n ************* A goroutine finished! *************"
 		go handleConnection(conn, channel)
 	}
 }
@@ -54,11 +55,10 @@ func handleConnection(conn net.Conn, channel chan string) {
 	defer utility.ReleaseBufferChannel(channel)
 	defer conn.Close()
 
-	// read request
+	// Read request
 	reader := bufio.NewReader(conn)
 
 	request, err := http.ReadRequest(reader)
-	fmt.Printf("Test with request: %v", request)
 	if err != nil {
 		fmt.Println("Reading http request Error:", err)
 		utility.SendResponse(conn, 400, "Bad Request(Request cannot be read or parsed)")
@@ -66,7 +66,7 @@ func handleConnection(conn net.Conn, channel chan string) {
 	}
 	utility.PrintRequest(request)
 
-	// parse request
+	// Parse request
 	reqMethod := request.Method
 
 	exePath, err := os.Executable()
@@ -106,10 +106,6 @@ func handleConnection(conn net.Conn, channel chan string) {
 }
 
 func handlePost(request *http.Request, conn net.Conn, lab1DatabaseDirectory string) {
-	// don't forget to send response before every return
-	// not sure about the error code
-	fmt.Println("Print the form")
-
 	err := request.ParseMultipartForm(32 << 20)
 	if err != nil {
 		fmt.Println("Payload Too Large: " + err.Error())
@@ -134,9 +130,8 @@ func handlePost(request *http.Request, conn net.Conn, lab1DatabaseDirectory stri
 		defer file.Close()
 
 		fileName := fileHeader.Filename
-		fmt.Println("Filename is: " + fileName)
 
-		// extension check
+		// Extension check
 		fileExtensionCheck := checkExtension(fileName)
 		if fileExtensionCheck == "" {
 			utility.SendResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")

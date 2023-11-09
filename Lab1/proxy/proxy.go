@@ -5,20 +5,19 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"lab1/utility"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
 	"strings"
-
-	"lab1/utility"
 )
 
 func main() {
-	// create a buffered channel for goroutine limitation
+	// Create a buffered channel for goroutine limitation
 	channel := make(chan string, 10)
 
-	// read the port number passed from terminal
+	// Read the port number passed from terminal
 	proxyPortPointer := flag.Int("port", 8070, "A port that the server listens from")
 	flag.Parse()
 	proxyPort := *proxyPortPointer
@@ -32,14 +31,15 @@ func main() {
 
 	fmt.Println("Proxy server is listening on " + utility.HostConn + ":" + strconv.Itoa(proxyPort))
 
-	// keep accepting connection request
+	// Keep accepting connection request
 	for {
 		connAsServer, err := listener.Accept()
 		if err != nil {
 			fmt.Println("Accepting Error", err.Error())
 			continue
 		}
-		channel <- "\n ************* A goroutine finished! *************" // this message will be shown before return handleConnection
+		// Channel message will be shown only before the return of handleConnection
+		channel <- "\n ************* A goroutine finished! *************"
 		go handleProxyConnection(connAsServer, channel)
 	}
 }
@@ -48,7 +48,7 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 	defer utility.ReleaseBufferChannel(channel)
 	defer connAsServer.Close()
 
-	// read request
+	// Read request
 	reader := bufio.NewReader(connAsServer)
 	request, err := http.ReadRequest(reader)
 	if err != nil {
@@ -58,7 +58,7 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 	}
 	utility.PrintRequest(request)
 
-	// parse request
+	// Parse request
 	reqMethod := request.Method
 	serverPort := getPort(request.URL.String())
 
@@ -72,10 +72,9 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 		}
 		defer connAsClient.Close()
 
-		// Forward the request
+		// Forward the request to the server
 		reqDump, err := httputil.DumpRequest(request, true)
-
-		// Process the request from the user
+		// Process the request from the client
 		requestToServer := removeAddress(string(reqDump))
 
 		if err != nil {
@@ -94,7 +93,10 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 		data, err := io.ReadAll(readerAsClient)
 		if err != nil {
 			utility.SendResponse(connAsServer, 500, "Internal Server Error (Cannot read data from server)")
+			return
 		}
+
+		// Send the data back to the client
 		connAsServer.Write([]byte(data))
 
 	} else {
@@ -106,7 +108,6 @@ func handleProxyConnection(connAsServer net.Conn, channel chan string) {
 func getPort(url string) string {
 	urlSplit := strings.Split(url, ":")
 	port := strings.Split(urlSplit[2], "/")[0]
-	fmt.Println("Port is " + port)
 	return port
 }
 
@@ -125,6 +126,5 @@ func removeAddress(request string) string {
 		}
 		result += " " + val
 	}
-	fmt.Println(" The string is : " + result)
 	return result
 }
