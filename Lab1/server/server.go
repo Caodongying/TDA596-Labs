@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	utility "mod_utility"
 	"net"
 	"net/http"
 	"os"
@@ -92,67 +93,72 @@ func handleConnection(conn net.Conn, channel chan string) {
 			return
 		}
 	} else if reqMethod == "POST" {
-		// don't forget to send response before every return
-		// not sure about the error code
-		fmt.Println("Print the form")
-
-		err := request.ParseMultipartForm(32 << 20)
-		if err != nil {
-			fmt.Println("Payload Too Large: " + err.Error())
-			utility.SendResponse(conn, 413, "Payload Too Large")
-			return
-		}
-
-		multiForm := request.MultipartForm
-
-		if len(multiForm.File) == 0 {
-			utility.SendResponse(conn, 400, "Bad Request(No file provided)")
-			return
-		}
-
-		for key := range multiForm.File {
-			file, fileHeader, err := request.FormFile(key)
-			if err != nil {
-				fmt.Println("Bad Request: " + err.Error())
-				utility.SendResponse(conn, 400, "Bad Request")
-				return
-			}
-			defer file.Close()
-
-			fileName := fileHeader.Filename
-			fmt.Println("Filename is: " + fileName)
-
-			// extension check
-			fileExtensionCheck := checkExtension(fileName)
-			if fileExtensionCheck == "" {
-				utility.SendResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")
-				return
-			}
-
-			// Store the file
-			localFilePath := lab1DatabaseDirectory + "/" + fileName
-			out, err := os.Create(localFilePath)
-			if err != nil {
-				fmt.Println("Internal Server Error: " + err.Error())
-				utility.SendResponse(conn, 500, "Internal Server Error")
-				return
-			}
-			defer out.Close()
-			_, err = io.Copy(out, file)
-			if err != nil {
-				fmt.Println("Internal Server Error: " + err.Error())
-				utility.SendResponse(conn, 500, "Internal Server Error")
-				return
-			}
-			fmt.Printf("File %s is stored successfully!\n", fileName)
-			utility.SendResponse(conn, 200, "OK! The file is stored successfully")
-		}
-
+		handlePost(request, conn, lab1DatabaseDirectory)
 		return
 	} else {
 		utility.SendResponse(conn, 501, "Not Implemented")
 		return
 	}
+}
+
+func handlePost(request *http.Request, conn net.Conn, lab1DatabaseDirectory string) {
+	// don't forget to send response before every return
+	// not sure about the error code
+	fmt.Println("Print the form")
+
+	err := request.ParseMultipartForm(32 << 20)
+	if err != nil {
+		fmt.Println("Payload Too Large: " + err.Error())
+		utility.SendResponse(conn, 413, "Payload Too Large")
+		return
+	}
+
+	multiForm := request.MultipartForm
+
+	if len(multiForm.File) == 0 {
+		utility.SendResponse(conn, 400, "Bad Request(No file provided)")
+		return
+	}
+
+	for key := range multiForm.File {
+		file, fileHeader, err := request.FormFile(key)
+		if err != nil {
+			fmt.Println("Bad Request: " + err.Error())
+			utility.SendResponse(conn, 400, "Bad Request")
+			return
+		}
+		defer file.Close()
+
+		fileName := fileHeader.Filename
+		fmt.Println("Filename is: " + fileName)
+
+		// extension check
+		fileExtensionCheck := checkExtension(fileName)
+		if fileExtensionCheck == "" {
+			utility.SendResponse(conn, 400, "Bad Request(Extension not supported or no extension specified)")
+			return
+		}
+
+		// Store the file
+		localFilePath := lab1DatabaseDirectory + "/" + fileName
+		out, err := os.Create(localFilePath)
+		if err != nil {
+			fmt.Println("Internal Server Error: " + err.Error())
+			utility.SendResponse(conn, 500, "Internal Server Error")
+			return
+		}
+		defer out.Close()
+		_, err = io.Copy(out, file)
+		if err != nil {
+			fmt.Println("Internal Server Error: " + err.Error())
+			utility.SendResponse(conn, 500, "Internal Server Error")
+			return
+		}
+		fmt.Printf("File %s is stored successfully!\n", fileName)
+		utility.SendResponse(conn, 200, "OK! The file is stored successfully")
+	}
+
+	return
 }
 
 // func PrintRequest(request *http.Request) {
