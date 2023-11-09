@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"utility.com/utility"
+	"lab1/utility"
 )
 
 func main() {

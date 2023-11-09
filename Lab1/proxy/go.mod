@@ -1,7 +1,7 @@
-module utility.com/proxy
+module lab1/http_proxy
 
 go 1.21.3
 
-replace utility.com/utility => ../utility
+replace lab1/utility => ../utility
 
-require utility.com/utility v0.0.0-00010101000000-000000000000
+require lab1/utility v0.0.0-00010101000000-000000000000

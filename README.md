@@ -10,15 +10,15 @@ The excutable binary for the native server is produced by running `go build` und
 
 You can specify the binary name by running `go build -o your_binary_name`
 
-The generated executable must be run from terminal as we parameterize the server. Take the native server for example if using the default binary name **server**:
-1. `cd Lab1/server`
-2. `./server -port=1234`
+The generated executable must be run from terminal as we parameterize the server. Take the native server for example if using the default binary name **http_server**:
+1. `cd Lab1/http_server`
+2. `./http_server -port=1234`
 
 Here 1234 can be replaced by any available port number.
 
 To build and run the proxy server:
-1. `cd Lab1/proxy`
-2. `./proxy -port=3333`
+1. `cd Lab1/http_proxy`
+2. `./http_proxy -port=3333`
 
 Here 3333 can be replaced by any available port number.
 
