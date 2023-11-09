@@ -41,7 +41,6 @@ func main() {
 	// keep accepting connection request
 	for {
 		conn, err := listener.Accept()
-		fmt.Println("Heyyyyyy Server is Listening!!!")
 		if err != nil {
 			fmt.Println("Accepting Error", err.Error())
 			continue
@@ -52,7 +51,6 @@ func main() {
 }
 
 func handleConnection(conn net.Conn, channel chan string) {
-	fmt.Printf("We're now in handleConnection in server.go")
 	defer utility.ReleaseBufferChannel(channel)
 	defer conn.Close()
 
@@ -167,15 +165,6 @@ func handlePost(request *http.Request, conn net.Conn, lab1DatabaseDirectory stri
 	return
 }
 
-// func PrintRequest(request *http.Request) {
-// 	reqDump, err := httputil.DumpRequest(request, true)
-// 	if err != nil {
-// 		fmt.Println("Dumping request Error:", err.Error())
-// 		return
-// 	}
-// 	fmt.Printf("REQUEST:\n%s", string(reqDump))
-// }
-
 func fileExists(filePath string) bool {
 	// Validates if the file exists or not
 	_, err := os.Stat(filePath)
@@ -200,19 +189,6 @@ func sendResource(conn net.Conn, responseContentType string, localFilePath strin
 	conn.Write([]byte(responseBody))
 	return
 }
-
-// func SendResponse(conn net.Conn, statusCode int, responseMessage string) {
-// 	responseHeader := fmt.Sprintf("HTTP/1.1 %d %s\r\n", statusCode, responseMessage)
-// 	responseBody := fmt.Sprintf("%d %s", statusCode, responseMessage)
-// 	conn.Write([]byte(responseHeader))
-// 	conn.Write([]byte("\r\n"))
-// 	conn.Write([]byte(responseBody))
-// }
-
-// func ReleaseBufferChannel(channel chan string) {
-// 	temp := <-channel
-// 	fmt.Println(temp)
-// }
 
 func checkExtension(fileName string) string {
 	// Used to check the validation of extension
