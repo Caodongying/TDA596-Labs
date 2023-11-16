@@ -24,10 +24,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	//	"6.5840/labgob"
-	"6.5840/labrpc"
+	//	"Lab2/labgob"
+	"Lab2/labrpc"
 )
-
 
 // as each Raft peer becomes aware that successive log entries are
 // committed, the peer should send an ApplyMsg to the service (or

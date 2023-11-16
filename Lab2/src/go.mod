@@ -1,3 +1,3 @@
-module 6.5840
+module Lab2
 
 go 1.15

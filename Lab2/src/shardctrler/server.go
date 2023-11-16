@@ -1,10 +1,11 @@
 package shardctrler
 
-
-import "6.5840/raft"
-import "6.5840/labrpc"
-import "sync"
-import "6.5840/labgob"
+import (
+	"Lab2/labgob"
+	"Lab2/labrpc"
+	"Lab2/raft"
+	"sync"
+)
 
 
 type ShardCtrler struct {
