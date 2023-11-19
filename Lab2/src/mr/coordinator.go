@@ -1,18 +1,31 @@
 package mr
 
-import "log"
-import "net"
-import "os"
-import "net/rpc"
-import "net/http"
+import (
+	"errors"
+	"log"
+	"net"
+	"net/http"
+	"net/rpc"
+	"os"
+)
 
 
 type Coordinator struct {
 	// Your definitions here.
-
+	UnstartedMapTask []string
+	StartedMapTask []string
 }
 
 // Your code here -- RPC handlers for the worker to call.
+func (c *Coordinator) RPCHandleInitialize(args *Args, reply *Reply) error {
+	if len(c.UnstartedMapTask) == 0 {
+		return errors.New("All tasks started/finished!")
+	}
+	reply.Y = c.UnstartedMapTask[0]
+	c.StartedMapTask = append(c.StartedMapTask, reply.Y)
+	c.UnstartedMapTask = c.UnstartedMapTask[1:]
+	return nil
+}
 
 //
 // an example RPC handler.
@@ -63,7 +76,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
 	// Your code here.
-
+	c.UnstartedMapTask = files
 
 	c.server()
 	return &c

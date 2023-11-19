@@ -6,8 +6,10 @@ package mr
 // remember to capitalize all names.
 //
 
-import "os"
-import "strconv"
+import (
+	"os"
+	"strconv"
+)
 
 //
 // example to show how to declare the arguments
@@ -20,6 +22,14 @@ type ExampleArgs struct {
 
 type ExampleReply struct {
 	Y int
+}
+
+type Args struct {
+	X string
+}
+
+type Reply struct {
+	Y string
 }
 
 // Add your RPC definitions here.

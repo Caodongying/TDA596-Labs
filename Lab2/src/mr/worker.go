@@ -1,10 +1,11 @@
 package mr
 
-import "fmt"
-import "log"
-import "net/rpc"
-import "hash/fnv"
-
+import (
+	"fmt"
+	"hash/fnv"
+	"log"
+	"net/rpc"
+)
 
 //
 // Map functions return a slice of KeyValue.
@@ -32,12 +33,23 @@ func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
 	// Your worker implementation here.
-
-	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
+	args := Args{}
+	// fill in args
+	reply := Reply{}
+	
+	ok := call("Coordinator.RPCHandleInitialize", &args, &reply)
+	
+	if ok {
+		// reply.Y should be file name.
+		fmt.Printf("reply.Y %v\n", reply.Y)
+	} else {
+		fmt.Printf("call failed!\n") // ????
+	}
+	// Send the Example RPC to the coordinator.
+	//CallExample()
+	
 
 }
-
 //
 // example function to show how to make an RPC call to the coordinator.
 //
