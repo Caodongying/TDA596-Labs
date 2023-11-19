@@ -29,7 +29,8 @@ type Args struct {
 }
 
 type Reply struct {
-	Y string
+	File KeyValue
+	NReduce int
 }
 
 // Add your RPC definitions here.

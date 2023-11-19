@@ -7,13 +7,15 @@ import (
 	"net/http"
 	"net/rpc"
 	"os"
+	"strconv"
 )
 
 
 type Coordinator struct {
 	// Your definitions here.
-	UnstartedMapTask []string
-	StartedMapTask []string
+	UnstartedMapTask []KeyValue
+	StartedMapTask []KeyValue
+	NReduce int
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -21,8 +23,9 @@ func (c *Coordinator) RPCHandleInitialize(args *Args, reply *Reply) error {
 	if len(c.UnstartedMapTask) == 0 {
 		return errors.New("All tasks started/finished!")
 	}
-	reply.Y = c.UnstartedMapTask[0]
-	c.StartedMapTask = append(c.StartedMapTask, reply.Y)
+	reply.File = c.UnstartedMapTask[0]
+	reply.NReduce = c.NReduce
+	c.StartedMapTask = append(c.StartedMapTask, reply.File)
 	c.UnstartedMapTask = c.UnstartedMapTask[1:]
 	return nil
 }
@@ -76,7 +79,13 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
 	// Your code here.
-	c.UnstartedMapTask = files
+	c.NReduce = nReduce
+
+	// Assign Map task numbers to each specific file
+	for i, file := range files {
+		fileWithID := KeyValue{Key: strconv.Itoa(i), Value: file}
+		c.UnstartedMapTask = append(c.UnstartedMapTask, fileWithID)
+	}
 
 	c.server()
 	return &c

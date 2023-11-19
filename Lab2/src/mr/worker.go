@@ -1,11 +1,13 @@
 package mr
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"log"
 	"net/rpc"
 	"os"
+	"strconv"
 )
 
 //
@@ -41,15 +43,35 @@ func Worker(mapf func(string, string) []KeyValue,
 	ok := call("Coordinator.RPCHandleInitialize", &args, &reply)
 	
 	if ok {
-		fmt.Printf("reply.Y %v\n", reply.Y)
+		fmt.Printf("reply.FileName %v\n", reply.File.Value)
 		// read the file and call mapf
-		fileContent, err := os.ReadFile("./" + reply.Y) // not sure
+		fileContent, err := os.ReadFile("./" + reply.File.Value) // not sure
 		if err!=nil {
 			// TODO: file not exist
 		} else {
-			// Split output into chunks
-			intermediateOutput := mapf(reply.Y, string(fileContent[:]))
-			//fmt.Println(intermediateOutput)
+			// Split Map output into NReduce chunks
+			intermediateOutputs := mapf(reply.File.Value, string(fileContent[:]))
+			mapOutputBuckets := make([][]KeyValue, reply.NReduce)
+			for _, pair := range intermediateOutputs{
+				ReduceNumber := ihash(pair.Key) % reply.NReduce
+				mapOutputBuckets[ReduceNumber] = append(mapOutputBuckets[ReduceNumber], pair)
+			}
+
+			// Write NReduce chunks into files naming like mr-X-Y
+			MapNumber := reply.File.Key
+			for ReduceNumber, content := range mapOutputBuckets{
+				intermediateFile := "./mr-" + MapNumber + "-" + strconv.Itoa(ReduceNumber) + ".txt"
+				file, err := os.Create(intermediateFile)
+				if err != nil {
+					// DO MORE
+					log.Fatal(err)
+				}
+				enc := json.NewEncoder(file)
+				for _, kv := range content {
+					enc.Encode(&kv)
+				}
+			}
+			
 		}
 
 	} else {
@@ -78,8 +100,8 @@ func CallExample() {
 	// the Example() method of struct Coordinator.
 	ok := call("Coordinator.Example", &args, &reply)
 	if ok {
-		// reply.Y should be 100.
-		fmt.Printf("reply.Y %v\n", reply.Y)
+		// reply.FileName should be 100.
+		fmt.Printf("reply.FileName %v\n", reply.Y)
 	} else {
 		fmt.Printf("call failed!\n")
 	}
