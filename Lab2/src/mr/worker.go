@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"log"
 	"net/rpc"
+	"os"
 )
 
 //
@@ -40,15 +41,20 @@ func Worker(mapf func(string, string) []KeyValue,
 	ok := call("Coordinator.RPCHandleInitialize", &args, &reply)
 	
 	if ok {
-		// reply.Y should be file name.
 		fmt.Printf("reply.Y %v\n", reply.Y)
+		// read the file and call mapf
+		fileContent, err := os.ReadFile("./" + reply.Y) // not sure
+		if err!=nil {
+			// TODO: file not exist
+		} else {
+			// Split output into chunks
+			intermediateOutput := mapf(reply.Y, string(fileContent[:]))
+			//fmt.Println(intermediateOutput)
+		}
+
 	} else {
 		fmt.Printf("call failed!\n") // ????
 	}
-	// Send the Example RPC to the coordinator.
-	//CallExample()
-	
-
 }
 //
 // example function to show how to make an RPC call to the coordinator.
