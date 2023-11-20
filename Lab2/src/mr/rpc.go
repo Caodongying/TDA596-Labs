@@ -25,12 +25,14 @@ type ExampleReply struct {
 }
 
 type Args struct {
-	X string
+	File KeyValue
 }
 
 type Reply struct {
+	ReplyType string
 	File KeyValue
 	NReduce int
+	ReduceNumber int
 }
 
 // Add your RPC definitions here.

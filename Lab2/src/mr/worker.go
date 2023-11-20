@@ -35,48 +35,56 @@ func ihash(key string) int {
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 
-	// Your worker implementation here.
-	args := Args{}
-	// fill in args
-	reply := Reply{}
+	for {
+		args := Args{}
+		reply := Reply{}
+		ok := call("Coordinator.RPCHandleInitialize", &args, &reply)
+		
+		if ok {
+			fmt.Printf("reply.FileName %v\n", reply.File.Value)
+			// read the file and call mapf
+			fileContent, err := os.ReadFile("./" + reply.File.Value) // not sure
+			if err!=nil {
+				// TODO: file not exist
+			} else {
+				// Split Map output into NReduce chunks
+				intermediateOutputs := mapf(reply.File.Value, string(fileContent[:]))
+				mapOutputBuckets := make([][]KeyValue, reply.NReduce)
+				for _, pair := range intermediateOutputs{
+					ReduceNumber := ihash(pair.Key) % reply.NReduce
+					mapOutputBuckets[ReduceNumber] = append(mapOutputBuckets[ReduceNumber], pair)
+				}
 	
-	ok := call("Coordinator.RPCHandleInitialize", &args, &reply)
+				// Write NReduce chunks into files naming like mr-X-Y
+				MapNumber := reply.File.Key
+				for ReduceNumber, content := range mapOutputBuckets{
+					intermediateFile := "./mr-" + MapNumber + "-" + strconv.Itoa(ReduceNumber) + ".txt"
+					file, err := os.Create(intermediateFile)
+					if err != nil {
+						// DO MORE
+						log.Fatal(err)
+					}
+					enc := json.NewEncoder(file)
+					for _, kv := range content {
+						enc.Encode(&kv)
+					}
+				}
 	
-	if ok {
-		fmt.Printf("reply.FileName %v\n", reply.File.Value)
-		// read the file and call mapf
-		fileContent, err := os.ReadFile("./" + reply.File.Value) // not sure
-		if err!=nil {
-			// TODO: file not exist
+				args := Args{File: reply.File}
+	
+				mapFinishOk := call("Coordinator.RPCHandleMapFinish", &args, &reply)
+				
+			}
+	
 		} else {
-			// Split Map output into NReduce chunks
-			intermediateOutputs := mapf(reply.File.Value, string(fileContent[:]))
-			mapOutputBuckets := make([][]KeyValue, reply.NReduce)
-			for _, pair := range intermediateOutputs{
-				ReduceNumber := ihash(pair.Key) % reply.NReduce
-				mapOutputBuckets[ReduceNumber] = append(mapOutputBuckets[ReduceNumber], pair)
-			}
-
-			// Write NReduce chunks into files naming like mr-X-Y
-			MapNumber := reply.File.Key
-			for ReduceNumber, content := range mapOutputBuckets{
-				intermediateFile := "./mr-" + MapNumber + "-" + strconv.Itoa(ReduceNumber) + ".txt"
-				file, err := os.Create(intermediateFile)
-				if err != nil {
-					// DO MORE
-					log.Fatal(err)
-				}
-				enc := json.NewEncoder(file)
-				for _, kv := range content {
-					enc.Encode(&kv)
-				}
-			}
-			
+			fmt.Printf("call failed!\n") // ????
 		}
-
-	} else {
-		fmt.Printf("call failed!\n") // ????
 	}
+
+	
+	
+	
+
 }
 //
 // example function to show how to make an RPC call to the coordinator.
