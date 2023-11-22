@@ -10,14 +10,18 @@ import (
 )
 
 
+
 type Coordinator struct {
-	// Your definitions here.
-	UnStartedMapTask []KeyValue
-	StartedMapTask []KeyValue
-	FinishedMapTask []KeyValue
-	UnStartedReduceTask []int
-	StartedReduceTask []int
-	FinishReduceTask []int
+	// TaskState for map/reduce tasks: Unstarted, Running, Finished
+	// AllMapTasks and AllReduceTasks have fixed length
+	AllMapTasks []KeyValue // Key: FileName, Value: TaskState
+	AllReduceTasks []KeyValue // Key: ReduceTask, Value: TaskState
+	MapChannel chan string
+	ReduceChannel chan int
+	State string // Map, Reduce, Wait    ?????????, Done
+	FinishedMapTaskCount int
+	FinishedReduceTaskCount int
+	NMap int
 	NReduce int
 }
 
@@ -137,15 +141,24 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
 	// Your code here.
+	c.NMap = len(files)
 	c.NReduce = nReduce
+	c.State = "Map"
 
-	// Assign Map task numbers to each specific file
-	for i, file := range files {
-		fileWithID := KeyValue{Key: strconv.Itoa(i), Value: file}
-		c.UnStartedMapTask = append(c.UnStartedMapTask, fileWithID)
-		for i:=0; i<nReduce; i++ {
-			c.UnStartedReduceTask = append(c.UnStartedReduceTask, i)
-		}
+	c.MapChannel = make(chan string, c.NMap)
+	c.ReduceChannel = make(chan int, c.NReduce)
+
+	// Initialize all fields
+	for _, file := range files {
+		mapTask := KeyValue{Key: file, Value: "Unstarted"}
+		c.AllMapTasks = append(c.AllMapTasks, mapTask)
+		c.MapChannel <- file
+	}
+
+	for i:=0; i<nReduce; i++ {
+		reduceTask := KeyValue{Key: strconv.Itoa(i), Value: "Unstarted"}
+		c.AllReduceTasks = append(c.AllReduceTasks, reduceTask)
+		c.ReduceChannel <- i
 	}
 
 	c.server()

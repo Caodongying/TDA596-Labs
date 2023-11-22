@@ -9,6 +9,7 @@ package mr
 import (
 	"os"
 	"strconv"
+	"time"
 )
 
 //
@@ -25,14 +26,18 @@ type ExampleReply struct {
 }
 
 type Args struct {
-	File KeyValue
+	StartTime time.Time
+	IsMap bool
+	MapTask KeyValue   // Key is the MapNumber, Value is the Filename
+	ReduceTask int
 }
 
 type Reply struct {
+	StartTime time.Time
 	ReplyType string
-	File KeyValue
+	MapTask KeyValue
+	ReduceTask int
 	NReduce int
-	ReduceNumber int
 }
 
 // Add your RPC definitions here.
