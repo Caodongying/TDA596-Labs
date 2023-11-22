@@ -1,22 +1,25 @@
 package mr
 
 import (
+	"errors"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
 	"strconv"
+	"time"
 )
 
-
+// ADD LOCKS EVERYWHERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+// Careful with variable names!!!!!!
 
 type Coordinator struct {
 	// TaskState for map/reduce tasks: Unstarted, Running, Finished
-	// AllMapTasks and AllReduceTasks have fixed length
-	AllMapTasks []KeyValue // Key: FileName, Value: TaskState
-	AllReduceTasks []KeyValue // Key: ReduceTask, Value: TaskState
-	MapChannel chan string
+	// MapTaskStates and ReduceTaskStates have fixed length
+	MapTaskStates []KeyValue // Key: FileName, Value: TaskState
+	ReduceTaskStates []KeyValue // Key: ReduceTask, Value: TaskState
+	MapChannel chan KeyValue
 	ReduceChannel chan int
 	State string // Map, Reduce, Wait    ?????????, Done
 	FinishedMapTaskCount int
@@ -25,69 +28,97 @@ type Coordinator struct {
 	NReduce int
 }
 
+func (c *Coordinator) CheckIfWait() {
+	if len(c.MapChannel) == 0 {
+		if c.State != "Reduce" {
+			c.State = "Wait"
+		}
+		return
+	}
+	if len(c.ReduceChannel) == 0 {
+		if c.State == "Reduce" {
+			c.State = "Wait"
+		}
+		return
+	}
+}
+
 // Your code here -- RPC handlers for the worker to call.
-func (c *Coordinator) RPCHandleInitialize(args *Args, reply *Reply) error {
+func (c *Coordinator) RPCGiveTask(args *Args, reply *Reply) error {
 	// 1. Start on a new Map Task
 	// 2. All map tasks started but not all finished, wait
 	// 3. All map tasks finished, start on a Reduce Task
 	// 4. All reduce tasks started but not all finished, wait
 
-	// ?. Not Sure due to Done() - All reduce tasks finished. Nothing to do! 😁
+	if c.State == "Done" {
+		reply.ReplyType = "Done"
+		return nil
+	}
 
-	if len(c.UnStartedMapTask) != 0 {
+	c.CheckIfWait()
+
+	if c.State == "Wait" {
+		reply.ReplyType = "Wait"
+		return nil
+	}
+
+	if c.State == "Map" {
 		// Assign a new map task
-		reply.ReplyType = "map"
-		reply.File = c.UnStartedMapTask[0]
+		reply.ReplyType = "Map"
 		reply.NReduce = c.NReduce
-		c.UnStartedMapTask = c.UnStartedMapTask[1:]
-		c.StartedMapTask = append(c.StartedMapTask, reply.File)	
+		reply.MapTask = <- c.MapChannel
+		reply.StartTime = time.Now()
 		return nil
 	}
 
-	if len(c.StartedMapTask) != 0 {
-		// Wait for all map tasks to be done
-		reply.ReplyType = "sleep"
+	if c.State == "Reduce" {
+		// Assign a new reduuce task
+		reply.ReplyType = "Reduce"
+		reply.ReduceTask = <- c.ReduceChannel
+		reply.StartTime = time.Now()
 		return nil
 	}
 
-	if len(c.UnStartedReduceTask) != 0 {
-		// Assign a new reduce task
-		reply.ReplyType = "reduce"
-		reply.ReduceNumber = c.UnStartedReduceTask[0]
-		c.UnStartedReduceTask = c.UnStartedReduceTask[1:]
-		c.StartedReduceTask = append(c.StartedReduceTask, reply.ReduceNumber)
-		return nil
-	}
-
-	if len(c.StartedReduceTask) != 0 {
-		// Wait for all reduce tasks to be done
-		reply.ReplyType = "sleep"
-		return nil
-	}
-
-
-
-	
-	
-	// if len(c.StartedMapTask) != 0 {
-	// 	// Wa
-	// }
-	//c.MapFinishedTask = []
-	return nil
+	return errors.New("Unknown State! Cannot give task!")
 }
 
 
-func (c *Coordinator) RPCHandleMapFinish(args *Args, reply *Reply) error {
-	c.FinishedMapTask = append(c.FinishedMapTask, args.File)
-	// Remove the finished map task from the StartedMapTask list
-	for i, v := range c.StartedMapTask {
-		if v == args.File {
-			c.StartedMapTask[i] = c.StartedMapTask[len(c.StartedMapTask)-1]
-			c.StartedMapTask = c.StartedMapTask[:len(c.StartedMapTask)-1]
-			break
+func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
+	// Check Timeout
+	elapsed := time.Now().Sub(args.StartTime)
+	if time.Duration.Seconds(elapsed) > float64(10) {
+		return nil
+	} 
+	// todo
+
+	if args.IsMap {
+		c.FinishedMapTaskCount ++
+
+		for _, mapTask := range c.MapTaskStates {
+			if mapTask.Key == args.MapTask.Value {
+				mapTask.Value = "Done"
+				break
+			}
+		}
+
+		if c.FinishedMapTaskCount == c.NMap {
+			c.State = "Reduce"
+		}
+	} else{
+		c.FinishedReduceTaskCount ++
+
+		for _, reduceTask := range c.ReduceTaskStates {
+			if reduceTask.Key == strconv.Itoa(args.ReduceTask) {
+				reduceTask.Value = "Done"
+				break
+			}
+		}
+
+		if c.FinishedReduceTaskCount == c.NReduce {
+			c.State = "Done"
+			// TODO:   call Done() !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		}
 	}
-	// TODO - check validation
 
 	return nil
 }
@@ -145,19 +176,19 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.NReduce = nReduce
 	c.State = "Map"
 
-	c.MapChannel = make(chan string, c.NMap)
+	c.MapChannel = make(chan KeyValue, c.NMap)
 	c.ReduceChannel = make(chan int, c.NReduce)
 
 	// Initialize all fields
-	for _, file := range files {
+	for i, file := range files {
 		mapTask := KeyValue{Key: file, Value: "Unstarted"}
-		c.AllMapTasks = append(c.AllMapTasks, mapTask)
-		c.MapChannel <- file
+		c.MapTaskStates = append(c.MapTaskStates, mapTask)
+		c.MapChannel <- KeyValue{Key: strconv.Itoa(i), Value: file}
 	}
 
 	for i:=0; i<nReduce; i++ {
 		reduceTask := KeyValue{Key: strconv.Itoa(i), Value: "Unstarted"}
-		c.AllReduceTasks = append(c.AllReduceTasks, reduceTask)
+		c.ReduceTaskStates = append(c.ReduceTaskStates, reduceTask)
 		c.ReduceChannel <- i
 	}
 

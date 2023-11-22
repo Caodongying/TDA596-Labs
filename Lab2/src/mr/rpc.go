@@ -34,8 +34,8 @@ type Args struct {
 
 type Reply struct {
 	StartTime time.Time
-	ReplyType string
-	MapTask KeyValue
+	ReplyType string // Map, Reduce, Wait, Done
+	MapTask KeyValue // Key is the MapNumber, Value is the Filename
 	ReduceTask int
 	NReduce int
 }
