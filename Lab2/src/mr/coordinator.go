@@ -2,6 +2,7 @@ package mr
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -121,6 +122,7 @@ func (c *Coordinator) handleReduceTaskTimer(timer *time.Timer, taskIndex int, re
 }
 
 func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
+	fmt.Println("Enter RPCFinishTask")
 	// Check Timeout
 	elapsed := time.Now().Sub(args.StartTime)
 	if time.Duration.Seconds(elapsed) > float64(10) {
@@ -133,20 +135,21 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 
 		for _, mapTask := range c.MapTaskStates {
 			if mapTask.Key == args.MapTask.Value {
-				mapTask.Value = "Done"
+				mapTask.Value = "Finished"
 				break
 			}
 		}
 
 		if c.FinishedMapTaskCount == c.NMap {
 			c.State = "Reduce"
+			fmt.Println("We are now switching to Reduce")
 		}
 	} else {
 		c.FinishedReduceTaskCount++
 
 		for _, reduceTask := range c.ReduceTaskStates {
 			if reduceTask.Key == strconv.Itoa(args.ReduceTask) {
-				reduceTask.Value = "Done"
+				reduceTask.Value = "Finished"
 				break
 			}
 		}
