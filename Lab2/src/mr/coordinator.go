@@ -9,6 +9,7 @@ import (
 	"net/rpc"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -27,18 +28,28 @@ type Coordinator struct {
 	FinishedReduceTaskCount int
 	NMap                    int
 	NReduce                 int
+	// locks
+	LockMapTaskStates sync.Mutex
+	LockReduceTaskStates sync.Mutex
+	LockState sync.Mutex
+	LockFinishedMapTaskCount sync.Mutex
+	LockFinishedReduceTaskCount sync.Mutex
 }
 
 func (c *Coordinator) CheckIfWait() {
 	if len(c.MapChannel) == 0 {
 		if c.State != "Reduce" {
+			c.LockState.Lock()
 			c.State = "Wait"
+			c.LockState.Unlock()
 		}
 		return
 	}
 	if len(c.ReduceChannel) == 0 {
 		if c.State == "Reduce" {
+			c.LockState.Lock()
 			c.State = "Wait"
+			c.LockState.Unlock()
 		}
 		return
 	}
@@ -72,14 +83,15 @@ func (c *Coordinator) RPCGiveTask(args *Args, reply *Reply) error {
 		var taskIndex int
 		for i := range c.MapTaskStates {
 			if c.MapTaskStates[i].Key == reply.MapTask.Value {
+				c.LockMapTaskStates.Lock()
 				c.MapTaskStates[i].Value = "Running"
+				c.LockMapTaskStates.Unlock()
 				taskIndex = i
 				break
 			}
 		}
 		reply.StartTime = time.Now()
-		timer := time.NewTimer(10 * time.Second)
-		defer c.handleMapTaskTimer(timer, taskIndex, reply.MapTask)
+		go c.handleMapTaskTimer(taskIndex, reply.MapTask)
 		return nil
 	}
 
@@ -91,32 +103,39 @@ func (c *Coordinator) RPCGiveTask(args *Args, reply *Reply) error {
 		var taskIndex int
 		for i := range c.ReduceTaskStates {
 			if c.ReduceTaskStates[i].Key == strconv.Itoa(reply.ReduceTask) {
+				c.LockReduceTaskStates.Lock()
 				c.ReduceTaskStates[i].Value = "Running"
+				c.LockReduceTaskStates.Unlock()
 				taskIndex = i
 				break
 			}
 		}
 		reply.StartTime = time.Now()
-		timer := time.NewTimer(10 * time.Second)
-		defer c.handleReduceTaskTimer(timer, taskIndex, reply.ReduceTask)
+		go c.handleReduceTaskTimer(taskIndex, reply.ReduceTask)
 		return nil
 	}
 
 	return errors.New("Unknown State! Cannot give task!")
 }
 
-func (c *Coordinator) handleMapTaskTimer(timer *time.Timer, taskIndex int, mapTask KeyValue) {
+func (c *Coordinator) handleMapTaskTimer(taskIndex int, mapTask KeyValue) {
+	timer := time.NewTimer(20 * time.Second)
 	<-timer.C
 	if c.MapTaskStates[taskIndex].Value != "Finished" {
+		c.LockMapTaskStates.Lock()
 		c.MapTaskStates[taskIndex].Value = "Unstarted"
+		c.LockMapTaskStates.Unlock()
 		c.MapChannel <- mapTask
 	}
 }
 
-func (c *Coordinator) handleReduceTaskTimer(timer *time.Timer, taskIndex int, reduceTask int) {
+func (c *Coordinator) handleReduceTaskTimer(taskIndex int, reduceTask int) {
+	timer := time.NewTimer(20 * time.Second)
 	<-timer.C
 	if c.ReduceTaskStates[taskIndex].Value != "Finished" {
+		c.LockReduceTaskStates.Lock()
 		c.ReduceTaskStates[taskIndex].Value = "Unstarted"
+		c.LockReduceTaskStates.Unlock()
 		c.ReduceChannel <- reduceTask
 	}
 }
@@ -131,32 +150,45 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 	}
 
 	if args.IsMap {
+		c.LockFinishedMapTaskCount.Lock()
 		c.FinishedMapTaskCount++
-		fmt.Println("FinishedMapTaskCount is ", c.FinishedMapTaskCount, " NMap is ", c.NMap)
+		c.LockFinishedMapTaskCount.Unlock()
+
+		fmt.Println("Map task file is", reply.MapTask.Value, "FinishedMapTaskCount is ", c.FinishedMapTaskCount, " NMap is ", c.NMap)
 
 		for _, mapTask := range c.MapTaskStates {
 			if mapTask.Key == args.MapTask.Value {
+				c.LockMapTaskStates.Lock()
 				mapTask.Value = "Finished"
+				c.LockMapTaskStates.Unlock()
 				break
 			}
 		}
 
 		if c.FinishedMapTaskCount == c.NMap {
+			c.LockState.Lock()
 			c.State = "Reduce"
+			c.LockState.Unlock()
 			fmt.Println("We are now switching to Reduce")
 		}
 	} else {
+		c.LockFinishedReduceTaskCount.Lock()
 		c.FinishedReduceTaskCount++
+		c.LockFinishedReduceTaskCount.Unlock()
 
 		for _, reduceTask := range c.ReduceTaskStates {
 			if reduceTask.Key == strconv.Itoa(args.ReduceTask) {
+				c.LockReduceTaskStates.Lock()
 				reduceTask.Value = "Finished"
+				c.LockReduceTaskStates.Unlock()
 				break
 			}
 		}
 
 		if c.FinishedReduceTaskCount == c.NReduce {
+			c.LockState.Lock()
 			c.State = "Done"
+			c.LockState.Unlock()
 			// TODO:   call Done() !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		}
 	}
