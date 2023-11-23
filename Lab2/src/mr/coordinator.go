@@ -28,29 +28,30 @@ type Coordinator struct {
 	FinishedReduceTaskCount int
 	NMap                    int
 	NReduce                 int
+	waitTime                int
 	// locks
-	LockMapTaskStates sync.Mutex
-	LockReduceTaskStates sync.Mutex
-	LockState sync.Mutex
-	LockFinishedMapTaskCount sync.Mutex
+	LockMapTaskStates           sync.Mutex
+	LockReduceTaskStates        sync.Mutex
+	LockState                   sync.Mutex
+	LockFinishedMapTaskCount    sync.Mutex
 	LockFinishedReduceTaskCount sync.Mutex
 }
 
 func (c *Coordinator) CheckIfWait() {
 	if len(c.MapChannel) == 0 {
+		c.LockState.Lock()
 		if c.State != "Reduce" {
-			c.LockState.Lock()
 			c.State = "Wait"
-			c.LockState.Unlock()
 		}
+		c.LockState.Unlock()
 		return
 	}
 	if len(c.ReduceChannel) == 0 {
+		c.LockState.Lock()
 		if c.State == "Reduce" {
-			c.LockState.Lock()
 			c.State = "Wait"
-			c.LockState.Unlock()
 		}
+		c.LockState.Unlock()
 		return
 	}
 }
@@ -62,19 +63,25 @@ func (c *Coordinator) RPCGiveTask(args *Args, reply *Reply) error {
 	// 3. All map tasks finished, start on a Reduce Task
 	// 4. All reduce tasks started but not all finished, wait
 
+	c.LockState.Lock()
 	if c.State == "Done" {
+		c.LockState.Unlock()
 		reply.ReplyType = "Done"
 		return nil
 	}
-
+	c.LockState.Unlock()
 	c.CheckIfWait()
 
-	if c.State == "Wait" {
+	c.LockState.Lock()
+	switch c.State {
+
+	case "Wait":
+		c.LockState.Unlock()
 		reply.ReplyType = "Wait"
 		return nil
-	}
 
-	if c.State == "Map" {
+	case "Map":
+		c.LockState.Unlock()
 		// Assign a new map task
 		reply.ReplyType = "Map"
 		reply.NReduce = c.NReduce
@@ -93,9 +100,9 @@ func (c *Coordinator) RPCGiveTask(args *Args, reply *Reply) error {
 		reply.StartTime = time.Now()
 		go c.handleMapTaskTimer(taskIndex, reply.MapTask)
 		return nil
-	}
 
-	if c.State == "Reduce" {
+	case "Reduce":
+		c.LockState.Unlock()
 		// Assign a new reduuce task
 		reply.ReplyType = "Reduce"
 		reply.ReduceTask = <-c.ReduceChannel
@@ -113,31 +120,34 @@ func (c *Coordinator) RPCGiveTask(args *Args, reply *Reply) error {
 		reply.StartTime = time.Now()
 		go c.handleReduceTaskTimer(taskIndex, reply.ReduceTask)
 		return nil
-	}
 
-	return errors.New("Unknown State! Cannot give task!")
+	default:
+		fmt.Println(c.State)
+		c.LockState.Unlock()
+		return errors.New("Unknown State! Cannot give task!")
+	}
 }
 
 func (c *Coordinator) handleMapTaskTimer(taskIndex int, mapTask KeyValue) {
-	timer := time.NewTimer(20 * time.Second)
+	timer := time.NewTimer(time.Duration(c.waitTime) * time.Second)
 	<-timer.C
+	c.LockMapTaskStates.Lock()
 	if c.MapTaskStates[taskIndex].Value != "Finished" {
-		c.LockMapTaskStates.Lock()
 		c.MapTaskStates[taskIndex].Value = "Unstarted"
-		c.LockMapTaskStates.Unlock()
 		c.MapChannel <- mapTask
 	}
+	c.LockMapTaskStates.Unlock()
 }
 
 func (c *Coordinator) handleReduceTaskTimer(taskIndex int, reduceTask int) {
-	timer := time.NewTimer(20 * time.Second)
+	timer := time.NewTimer(time.Duration(c.waitTime) * time.Second)
 	<-timer.C
+	c.LockReduceTaskStates.Lock()
 	if c.ReduceTaskStates[taskIndex].Value != "Finished" {
-		c.LockReduceTaskStates.Lock()
 		c.ReduceTaskStates[taskIndex].Value = "Unstarted"
-		c.LockReduceTaskStates.Unlock()
 		c.ReduceChannel <- reduceTask
 	}
+	c.LockReduceTaskStates.Unlock()
 }
 
 func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
@@ -145,31 +155,34 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 	//Check Timeout
 	elapsed := time.Since(args.StartTime)
 	fmt.Println("duration: ", time.Duration.Seconds(elapsed))
-	if time.Duration.Seconds(elapsed) > float64(20) {
+	if time.Duration.Seconds(elapsed) > float64(c.waitTime) {
 		return nil
 	}
 
 	if args.IsMap {
 		c.LockFinishedMapTaskCount.Lock()
 		c.FinishedMapTaskCount++
+		fmt.Println("Map task file is", reply.MapTask.Value, "FinishedMapTaskCount is ", c.FinishedMapTaskCount, " NMap is ", c.NMap)
 		c.LockFinishedMapTaskCount.Unlock()
 
-		fmt.Println("Map task file is", reply.MapTask.Value, "FinishedMapTaskCount is ", c.FinishedMapTaskCount, " NMap is ", c.NMap)
-
+		c.LockMapTaskStates.Lock()
 		for _, mapTask := range c.MapTaskStates {
 			if mapTask.Key == args.MapTask.Value {
-				c.LockMapTaskStates.Lock()
 				mapTask.Value = "Finished"
-				c.LockMapTaskStates.Unlock()
 				break
 			}
 		}
+		c.LockMapTaskStates.Unlock()
 
+		c.LockFinishedMapTaskCount.Lock()
 		if c.FinishedMapTaskCount == c.NMap {
+			c.LockFinishedMapTaskCount.Unlock()
 			c.LockState.Lock()
 			c.State = "Reduce"
 			c.LockState.Unlock()
 			fmt.Println("We are now switching to Reduce")
+		} else {
+			c.LockFinishedMapTaskCount.Unlock()
 		}
 	} else {
 		c.LockFinishedReduceTaskCount.Lock()
@@ -185,11 +198,14 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 			}
 		}
 
+		c.LockFinishedReduceTaskCount.Lock()
 		if c.FinishedReduceTaskCount == c.NReduce {
+			c.LockFinishedReduceTaskCount.Unlock()
 			c.LockState.Lock()
 			c.State = "Done"
 			c.LockState.Unlock()
-			// TODO:   call Done() !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		} else {
+			c.LockFinishedReduceTaskCount.Unlock()
 		}
 	}
 
@@ -221,10 +237,9 @@ func (c *Coordinator) server() {
 // main/mrcoordinator.go calls Done() periodically to find out
 // if the entire job has finished.
 func (c *Coordinator) Done() bool {
-	ret := false
-
-	// Your code here.
-
+	c.LockState.Lock()
+	ret := c.State == "Done"
+	c.LockState.Unlock()
 	return ret
 }
 
@@ -235,6 +250,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
 	// Your code here.
+	c.waitTime = 60 // initialise the wait time
 	c.NMap = len(files)
 	c.NReduce = nReduce
 	c.State = "Map"
