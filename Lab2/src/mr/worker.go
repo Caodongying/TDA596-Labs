@@ -1,13 +1,17 @@
 package mr
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"log"
 	"net/rpc"
 	"os"
+	"path/filepath"
 	"strconv"
+	"time"
 )
 
 //
@@ -18,6 +22,10 @@ type KeyValue struct {
 	Value string
 }
 
+// type ReduceDictionary struct {
+// 	Key string
+// 	Values []string
+// }
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -34,57 +42,36 @@ func ihash(key string) int {
 //
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
-
-	for {
+	isActive := true // indicate if worker is active
+	for isActive {
 		args := Args{}
 		reply := Reply{}
-		ok := call("Coordinator.RPCHandleInitialize", &args, &reply)
+		ok := call("Coordinator.RPCGiveTask", &args, &reply)
 		
 		if ok {
-			fmt.Printf("reply.FileName %v\n", reply.File.Value)
-			// read the file and call mapf
-			fileContent, err := os.ReadFile("./" + reply.File.Value) // not sure
-			if err!=nil {
-				// TODO: file not exist
-			} else {
-				// Split Map output into NReduce chunks
-				intermediateOutputs := mapf(reply.File.Value, string(fileContent[:]))
-				mapOutputBuckets := make([][]KeyValue, reply.NReduce)
-				for _, pair := range intermediateOutputs{
-					ReduceNumber := ihash(pair.Key) % reply.NReduce
-					mapOutputBuckets[ReduceNumber] = append(mapOutputBuckets[ReduceNumber], pair)
-				}
-	
-				// Write NReduce chunks into files naming like mr-X-Y
-				MapNumber := reply.File.Key
-				for ReduceNumber, content := range mapOutputBuckets{
-					intermediateFile := "./mr-" + MapNumber + "-" + strconv.Itoa(ReduceNumber) + ".txt"
-					file, err := os.Create(intermediateFile)
-					if err != nil {
-						// DO MORE
-						log.Fatal(err)
-					}
-					enc := json.NewEncoder(file)
-					for _, kv := range content {
-						enc.Encode(&kv)
-					}
-				}
-	
-				args := Args{File: reply.File}
-	
-				mapFinishOk := call("Coordinator.RPCHandleMapFinish", &args, &reply)
-				
+			switch reply.ReplyType {
+			case "Map":
+				handleMapTask(&args, &reply, mapf)
+				// err := handleMapTask(&args, &reply, mapf)
+				// if err != nil {
+				// 	fmt.Println(err)
+				// }
+			case "Reduce":
+				handleReduceTask(&args, &reply, reducef)
+			case "Wait":
+				time.Sleep(1*time.Second)
+			case "Done":
+				fmt.Println("Coordinator is done. Shut down the worker.")
+				isActive = false
+			default:
+				fmt.Println(errors.New("ReplyType unrecognized. Shut down the worker!"))
+				isActive = false
 			}
-	
 		} else {
+			// should crash
 			fmt.Printf("call failed!\n") // ????
 		}
 	}
-
-	
-	
-	
-
 }
 //
 // example function to show how to make an RPC call to the coordinator.
@@ -136,4 +123,116 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 
 	fmt.Println(err)
 	return false
+}
+
+func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValue) {
+	// read the file and call mapf
+	fileContent, err := os.ReadFile("./" + reply.MapTask.Value)
+	if err!=nil {
+		fmt.Printf("Error when opening file %v\n", reply.MapTask.Value)
+		//return err
+	} else {
+		// Split Map output into NReduce chunks
+		intermediateOutputs := mapf(reply.MapTask.Value, string(fileContent[:])) // mapf takes filename and file content
+		mapOutputBuckets := make([][]KeyValue, reply.NReduce)
+		for _, pair := range intermediateOutputs{
+			ReduceNumber := ihash(pair.Key) % reply.NReduce
+			mapOutputBuckets[ReduceNumber] = append(mapOutputBuckets[ReduceNumber], pair)
+		}
+
+		// Write NReduce chunks into files naming like mr-X-Y
+		MapNumber := reply.MapTask.Key
+		for ReduceNumber, content := range mapOutputBuckets{
+			intermediateFile := "./mr-" + MapNumber + "-" + strconv.Itoa(ReduceNumber) + ".txt"
+			file, err := os.Create(intermediateFile)
+			if err != nil {
+				// DO MORE
+				log.Fatal(err)
+			}
+			enc := json.NewEncoder(file)
+			for _, kv := range content {
+				enc.Encode(&kv)
+			}
+		}
+
+		args.StartTime = reply.StartTime
+		args.IsMap = true
+		args.MapTask = reply.MapTask
+
+		mapFinishOk := call("Coordinator.RPCFinishTask", &args, &reply)
+		if !mapFinishOk {
+			fmt.Println("call RPCFinishTask fails!")
+		}
+	}
+}
+
+func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) string){
+	// reducef will be called in a loop
+	// First group/merge the files for the reducer
+	// Create an empty dictionary like {key, [value1, value2...]}
+	// Read files that should be handled by the reducer
+	// if the key is in the dictionary, append the value to the list
+	// if the key doesn't exist, create an entry
+	reducer := reply.ReduceTask
+	reduceDic := make(map[string][]string)
+	files, err := filepath.Glob("../main/mr-*-" + strconv.Itoa(reducer) + ".txt")
+	if err != nil {
+		fmt.Println("Cannot get the files via pattern:", err)
+		return // not sure
+	}
+
+	for _, file := range files {
+		// before using NewDecoder, open the file
+		fileContent, err := os.ReadFile(file)
+		if err != nil {
+			fmt.Println("Cannot read the file", err)
+		}
+		dec := json.NewDecoder(bytes.NewReader(fileContent))
+		// process the key-value pairs and put them in reduceDic
+
+		for {
+			var kv KeyValue
+			if err:= dec.Decode(&kv); err != nil {
+				break
+			}
+			// check if the key is inside reduceDic
+			val, ok := reduceDic[kv.Key]
+			if ok {
+				// the key exists in reduceDic, append the value to the list
+				reduceDic[kv.Key] = append(val, kv.Value)		
+			}else{
+				// create a new entry
+				reduceDic[kv.Key] = []string{kv.Value}
+			}
+		}
+
+	}
+
+	// Apply reducef on the dictionary
+	// create the output file
+	filePath := "../main/mr-out-" + strconv.Itoa(reducer) + ".txt"  // not sure if .txt is needed
+	reduceOutputFile, err := os.Create(filePath)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	for key, values := range reduceDic {
+		output := reducef(key, values)
+		stringToWrite := fmt.Sprintf("%v %v\n", key, output)
+		_, err := reduceOutputFile.WriteString(stringToWrite)
+		if err != nil {
+			fmt.Println("Cannot write reduce output", err)
+			return
+		}
+	}
+
+	// Notify the coordinator that this is done
+	args.StartTime = reply.StartTime
+	args.IsMap = false
+	args.ReduceTask = reply.ReduceTask
+
+	reduceFinishOk := call("Coordinator.RPCFinishTask", &args, &reply)
+	if !reduceFinishOk {
+		fmt.Println("call RPCFinishTask fails!")
+	}
 }
