@@ -123,15 +123,16 @@ func (c *Coordinator) handleReduceTaskTimer(timer *time.Timer, taskIndex int, re
 
 func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 	fmt.Println("Enter RPCFinishTask")
-	// Check Timeout
-	elapsed := time.Now().Sub(args.StartTime)
-	if time.Duration.Seconds(elapsed) > float64(10) {
+	//Check Timeout
+	elapsed := time.Since(args.StartTime)
+	fmt.Println("duration: ", time.Duration.Seconds(elapsed))
+	if time.Duration.Seconds(elapsed) > float64(20) {
 		return nil
 	}
-	// todo
 
 	if args.IsMap {
 		c.FinishedMapTaskCount++
+		fmt.Println("FinishedMapTaskCount is ", c.FinishedMapTaskCount, " NMap is ", c.NMap)
 
 		for _, mapTask := range c.MapTaskStates {
 			if mapTask.Key == args.MapTask.Value {

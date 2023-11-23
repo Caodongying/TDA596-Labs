@@ -51,16 +51,20 @@ func Worker(mapf func(string, string) []KeyValue,
 		if ok {
 			switch reply.ReplyType {
 			case "Map":
+				fmt.Println("The worker receives reply type Map")
 				handleMapTask(&args, &reply, mapf)
 				// err := handleMapTask(&args, &reply, mapf)
 				// if err != nil {
 				// 	fmt.Println(err)
 				// }
 			case "Reduce":
+				fmt.Println("The worker receives reply type Reduce")
 				handleReduceTask(&args, &reply, reducef)
 			case "Wait":
+				fmt.Println("The worker receives reply type Wait")
 				time.Sleep(1*time.Second)
 			case "Done":
+				fmt.Println("The worker receives reply type Done")
 				fmt.Println("Coordinator is done. Shut down the worker.")
 				isActive = false
 			default:
