@@ -6,10 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io/ioutil"
 	"log"
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -22,11 +24,14 @@ type KeyValue struct {
 	Value string
 }
 
-// type ReduceDictionary struct {
-// 	Key string
-// 	Values []string
-// }
-//
+// for sorting by key.
+type ByKey []KeyValue
+
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
+
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
 //
@@ -53,10 +58,6 @@ func Worker(mapf func(string, string) []KeyValue,
 			case "Map":
 				fmt.Println("The worker receives reply type Map")
 				handleMapTask(&args, &reply, mapf)
-				// err := handleMapTask(&args, &reply, mapf)
-				// if err != nil {
-				// 	fmt.Println(err)
-				// }
 			case "Reduce":
 				fmt.Println("The worker receives reply type Reduce")
 				handleReduceTask(&args, &reply, reducef)
@@ -134,6 +135,7 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 	fileContent, err := os.ReadFile("./" + reply.MapTask.Value)
 	if err!=nil {
 		fmt.Printf("Error when opening file %v\n", reply.MapTask.Value)
+		return
 	} else {
 		// Split Map output into NReduce chunks
 		intermediateOutputs := mapf(reply.MapTask.Value, string(fileContent[:])) // mapf takes filename and file content
@@ -145,17 +147,23 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 
 		// Write NReduce chunks into files naming like mr-X-Y
 		MapNumber := reply.MapTask.Key
+
+		// for sorting by key.
 		for ReduceNumber, content := range mapOutputBuckets{
+			// sort the content
+			sort.Sort(ByKey(content))
 			intermediateFile := "./mr-" + MapNumber + "-" + strconv.Itoa(ReduceNumber) + ".txt"
-			file, err := os.Create(intermediateFile)
+			temp := "temp.txt"
+			tempFile, err := ioutil.TempFile("", temp)
 			if err != nil {
 				log.Fatal(err)
 				return
 			}
-			enc := json.NewEncoder(file)
+			enc := json.NewEncoder(tempFile)
 			for _, kv := range content {
 				enc.Encode(&kv)
 			}
+			os.Rename(tempFile.Name(), intermediateFile)
 		}
 
 		args.StartTime = reply.StartTime
@@ -214,8 +222,9 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 
 	// Apply reducef on the dictionary
 	// create the output file
-	filePath := "./mr-out-" + strconv.Itoa(reducer) + ".txt"  // not sure if .txt is needed
-	reduceOutputFile, err := os.Create(filePath)
+	reduceOutputFile := "./mr-out-" + strconv.Itoa(reducer) + ".txt"  // not sure if .txt is needed
+	temp := "tempFile.txt"
+	tempFile, err := ioutil.TempFile("./", temp)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -223,12 +232,13 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 	for key, values := range reduceDic {
 		output := reducef(key, values)
 		stringToWrite := fmt.Sprintf("%v %v\n", key, output)
-		_, err := reduceOutputFile.WriteString(stringToWrite)
+		_, err := tempFile.WriteString(stringToWrite)
 		if err != nil {
 			fmt.Println("Cannot write reduce output", err)
 			return
 		}
 	}
+	os.Rename(tempFile.Name(), reduceOutputFile)
 
 	// Notify the coordinator that this is done
 	args.StartTime = reply.StartTime

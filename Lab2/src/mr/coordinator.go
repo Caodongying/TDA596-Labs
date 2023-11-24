@@ -133,11 +133,15 @@ func (c *Coordinator) handleMapTaskTimer(taskIndex int, mapTask KeyValue) {
 	<-timer.C
 	c.LockMapTaskStates.Lock()
 	if c.MapTaskStates[taskIndex].Value != "Finished" {
+		fmt.Println("Map Task state is ", c.MapTaskStates[taskIndex].Value)
+		fmt.Println("Timers says Map task time out: ", c.MapTaskStates[taskIndex].Key)
 		c.MapTaskStates[taskIndex].Value = "Unstarted"
+		c.LockMapTaskStates.Unlock()
 		c.MapChannel <- mapTask
 		c.LockState.Lock()
 		c.State = "Map"
 		c.LockState.Unlock()
+		return
 	}
 	c.LockMapTaskStates.Unlock()
 }
@@ -147,11 +151,14 @@ func (c *Coordinator) handleReduceTaskTimer(taskIndex int, reduceTask int) {
 	<-timer.C
 	c.LockReduceTaskStates.Lock()
 	if c.ReduceTaskStates[taskIndex].Value != "Finished" {
+		fmt.Println("Timers says Reduce task time out: ", c.ReduceTaskStates[taskIndex].Key)
 		c.ReduceTaskStates[taskIndex].Value = "Unstarted"
+		c.LockReduceTaskStates.Unlock()
 		c.ReduceChannel <- reduceTask
 		c.LockState.Lock()
 		c.State = "Reduce"
 		c.LockState.Unlock()
+		return
 	}
 	c.LockReduceTaskStates.Unlock()
 }
@@ -159,28 +166,42 @@ func (c *Coordinator) handleReduceTaskTimer(taskIndex int, reduceTask int) {
 func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 	fmt.Println("Enter RPCFinishTask")
 	//Check Timeout
-	elapsed := time.Since(args.StartTime)
-	fmt.Println("duration: ", time.Duration.Seconds(elapsed))
-	if time.Duration.Seconds(elapsed) > float64(c.waitTime) {
-		return nil
-	}
+	// elapsed := time.Since(args.StartTime)
+	// fmt.Println("duration: ", elapsed)
+	// if elapsed.Seconds() > float64(c.waitTime) {
+	// 	return errors.New("Time out error")
+	// }
 
 	if args.IsMap {
-		c.LockFinishedMapTaskCount.Lock()
-		c.FinishedMapTaskCount++
-		fmt.Println("Map task file is", reply.MapTask.Value, "FinishedMapTaskCount is ", c.FinishedMapTaskCount, " NMap is ", c.NMap)
-		c.LockFinishedMapTaskCount.Unlock()
-
 		c.LockMapTaskStates.Lock()
-		for _, mapTask := range c.MapTaskStates {
+		for i, mapTask := range c.MapTaskStates {
 			if mapTask.Key == args.MapTask.Value {
-				mapTask.Value = "Finished"
-				break
+				// Check if it's already finished
+				if mapTask.Value == "Finished" {
+					c.LockMapTaskStates.Unlock()
+					return nil
+				} else{
+					// first check time out
+					elapsed := time.Since(args.StartTime)
+					fmt.Println("duration of Map file ", args.MapTask.Value, " is( in second) ", elapsed.Seconds())
+					if elapsed.Seconds() > float64(c.waitTime) {
+						return errors.New("Time out error when receiving finished task")
+					}
+					c.MapTaskStates[i].Value = "Finished"
+					//mapTask.Value = "Finished"
+					break
+				}
 			}
 		}
+
 		c.LockMapTaskStates.Unlock()
 
 		c.LockFinishedMapTaskCount.Lock()
+		c.FinishedMapTaskCount++
+		fmt.Println("Map task file is", args.MapTask.Value, "FinishedMapTaskCount is ", c.FinishedMapTaskCount, " NMap is ", c.NMap)
+		// c.LockFinishedMapTaskCount.Unlock()
+
+		// c.LockFinishedMapTaskCount.Lock()
 		if c.FinishedMapTaskCount == c.NMap {
 			c.LockFinishedMapTaskCount.Unlock()
 			c.LockState.Lock()
@@ -191,20 +212,32 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 			c.LockFinishedMapTaskCount.Unlock()
 		}
 	} else {
-		c.LockFinishedReduceTaskCount.Lock()
-		c.FinishedReduceTaskCount++
-		c.LockFinishedReduceTaskCount.Unlock()
-
-		for _, reduceTask := range c.ReduceTaskStates {
+		c.LockReduceTaskStates.Lock()
+		for i, reduceTask := range c.ReduceTaskStates {
 			if reduceTask.Key == strconv.Itoa(args.ReduceTask) {
-				c.LockReduceTaskStates.Lock()
-				reduceTask.Value = "Finished"
-				c.LockReduceTaskStates.Unlock()
-				break
+				if reduceTask.Value == "Finished" {
+					c.LockReduceTaskStates.Unlock()
+					return nil
+				} else{
+					// check timeout
+					elapsed := time.Since(args.StartTime)
+					fmt.Println("duration of Reduce task ", args.ReduceTask, " is( in second) ", elapsed.Seconds())
+					if elapsed.Seconds() > float64(c.waitTime) {
+						return errors.New("Time out error when receiving finished task")
+					}
+					c.ReduceTaskStates[i].Value = "Finished"
+					break
+				}
+				
 			}
 		}
+		c.LockReduceTaskStates.Unlock()
 
 		c.LockFinishedReduceTaskCount.Lock()
+		c.FinishedReduceTaskCount++
+		// c.LockFinishedReduceTaskCount.Unlock()
+
+		// c.LockFinishedReduceTaskCount.Lock()
 		if c.FinishedReduceTaskCount == c.NReduce {
 			c.LockFinishedReduceTaskCount.Unlock()
 			c.LockState.Lock()
