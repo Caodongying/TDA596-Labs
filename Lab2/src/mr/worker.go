@@ -73,7 +73,8 @@ func Worker(mapf func(string, string) []KeyValue,
 			}
 		} else {
 			// should crash
-			fmt.Printf("call failed!\n") // ????
+			fmt.Printf("The coordinator is shut down. Worker exits.\n") // ????
+			isActive = false
 		}
 	}
 }
@@ -125,7 +126,6 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 		return true
 	}
 
-	fmt.Println(err)
 	return false
 }
 
@@ -134,7 +134,6 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 	fileContent, err := os.ReadFile("./" + reply.MapTask.Value)
 	if err!=nil {
 		fmt.Printf("Error when opening file %v\n", reply.MapTask.Value)
-		//return err
 	} else {
 		// Split Map output into NReduce chunks
 		intermediateOutputs := mapf(reply.MapTask.Value, string(fileContent[:])) // mapf takes filename and file content
@@ -150,8 +149,8 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 			intermediateFile := "./mr-" + MapNumber + "-" + strconv.Itoa(ReduceNumber) + ".txt"
 			file, err := os.Create(intermediateFile)
 			if err != nil {
-				// DO MORE
 				log.Fatal(err)
+				return
 			}
 			enc := json.NewEncoder(file)
 			for _, kv := range content {
@@ -182,7 +181,7 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 	files, err := filepath.Glob("../main/mr-*-" + strconv.Itoa(reducer) + ".txt")
 	if err != nil {
 		fmt.Println("Cannot get the files via pattern:", err)
-		return // not sure
+		return
 	}
 
 	for _, file := range files {
@@ -190,6 +189,7 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 		fileContent, err := os.ReadFile(file)
 		if err != nil {
 			fmt.Println("Cannot read the file", err)
+			return
 		}
 		dec := json.NewDecoder(bytes.NewReader(fileContent))
 		// process the key-value pairs and put them in reduceDic
