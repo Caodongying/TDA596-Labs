@@ -166,31 +166,18 @@ func (c *Coordinator) handleReduceTaskTimer(taskIndex int, reduceTask int) {
 func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 	fmt.Println("Enter RPCFinishTask")
 	//Check Timeout
-	// elapsed := time.Since(args.StartTime)
-	// fmt.Println("duration: ", elapsed)
-	// if elapsed.Seconds() > float64(c.waitTime) {
-	// 	return errors.New("Time out error")
-	// }
+	elapsed := time.Since(args.StartTime)
+	fmt.Println("duration: ", elapsed)
+	if elapsed.Seconds() > float64(c.waitTime) {
+		return errors.New("Time out error")
+	}
 
 	if args.IsMap {
 		c.LockMapTaskStates.Lock()
 		for i, mapTask := range c.MapTaskStates {
 			if mapTask.Key == args.MapTask.Value {
-				// Check if it's already finished
-				if mapTask.Value == "Finished" {
-					c.LockMapTaskStates.Unlock()
-					return nil
-				} else{
-					// first check time out
-					elapsed := time.Since(args.StartTime)
-					fmt.Println("duration of Map file ", args.MapTask.Value, " is( in second) ", elapsed.Seconds())
-					if elapsed.Seconds() > float64(c.waitTime) {
-						return errors.New("Time out error when receiving finished task")
-					}
-					c.MapTaskStates[i].Value = "Finished"
-					//mapTask.Value = "Finished"
-					break
-				}
+				c.MapTaskStates[i].Value = "Finished"
+				break
 			}
 		}
 
@@ -215,21 +202,9 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 		c.LockReduceTaskStates.Lock()
 		for i, reduceTask := range c.ReduceTaskStates {
 			if reduceTask.Key == strconv.Itoa(args.ReduceTask) {
-				if reduceTask.Value == "Finished" {
-					c.LockReduceTaskStates.Unlock()
-					return nil
-				} else{
-					// check timeout
-					elapsed := time.Since(args.StartTime)
-					fmt.Println("duration of Reduce task ", args.ReduceTask, " is( in second) ", elapsed.Seconds())
-					if elapsed.Seconds() > float64(c.waitTime) {
-						return errors.New("Time out error when receiving finished task")
-					}
-					c.ReduceTaskStates[i].Value = "Finished"
-					break
-				}
-				
-			}
+				c.ReduceTaskStates[i].Value = "Finished"
+				break
+			}	
 		}
 		c.LockReduceTaskStates.Unlock()
 
@@ -296,7 +271,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 
 	c.State = "Map"
 
-	c.waitTime = 20 // initialise the wait time
+	c.waitTime = 10 // initialise the wait time
 	c.NMap = len(files)
 	c.NReduce = nReduce
 

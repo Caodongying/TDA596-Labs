@@ -172,7 +172,7 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 
 		mapFinishOk := call("Coordinator.RPCFinishTask", &args, &reply)
 		if !mapFinishOk {
-			fmt.Println("call RPCFinishTask fails!")
+			fmt.Println("Execution time out!")
 		}
 	}
 }
@@ -247,6 +247,6 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 
 	reduceFinishOk := call("Coordinator.RPCFinishTask", &args, &reply)
 	if !reduceFinishOk {
-		fmt.Println("call RPCFinishTask fails!")
+		fmt.Println("Execution time out!")
 	}
 }
