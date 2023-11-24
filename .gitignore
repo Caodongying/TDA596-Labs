@@ -25,4 +25,7 @@
 /Lab1/server/database/
 
 /Lab2/src/main/mr-*
+/Lab2/src/main/mrcoordinator
+/Lab2/src/main/mrsequential
+/Lab2/src/main/mrworker
 
