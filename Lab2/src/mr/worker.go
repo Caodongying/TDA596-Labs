@@ -178,7 +178,7 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 	// if the key doesn't exist, create an entry
 	reducer := reply.ReduceTask
 	reduceDic := make(map[string][]string)
-	files, err := filepath.Glob("../main/mr-*-" + strconv.Itoa(reducer) + ".txt")
+	files, err := filepath.Glob("./mr-*-" + strconv.Itoa(reducer) + ".txt")
 	if err != nil {
 		fmt.Println("Cannot get the files via pattern:", err)
 		return
@@ -214,7 +214,7 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 
 	// Apply reducef on the dictionary
 	// create the output file
-	filePath := "../main/mr-out-" + strconv.Itoa(reducer) + ".txt"  // not sure if .txt is needed
+	filePath := "./mr-out-" + strconv.Itoa(reducer) + ".txt"  // not sure if .txt is needed
 	reduceOutputFile, err := os.Create(filePath)
 	if err != nil {
 		log.Fatal(err)

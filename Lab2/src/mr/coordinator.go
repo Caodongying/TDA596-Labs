@@ -135,6 +135,9 @@ func (c *Coordinator) handleMapTaskTimer(taskIndex int, mapTask KeyValue) {
 	if c.MapTaskStates[taskIndex].Value != "Finished" {
 		c.MapTaskStates[taskIndex].Value = "Unstarted"
 		c.MapChannel <- mapTask
+		c.LockState.Lock()
+		c.State = "Map"
+		c.LockState.Unlock()
 	}
 	c.LockMapTaskStates.Unlock()
 }
@@ -146,6 +149,9 @@ func (c *Coordinator) handleReduceTaskTimer(taskIndex int, reduceTask int) {
 	if c.ReduceTaskStates[taskIndex].Value != "Finished" {
 		c.ReduceTaskStates[taskIndex].Value = "Unstarted"
 		c.ReduceChannel <- reduceTask
+		c.LockState.Lock()
+		c.State = "Reduce"
+		c.LockState.Unlock()
 	}
 	c.LockReduceTaskStates.Unlock()
 }
@@ -249,11 +255,17 @@ func (c *Coordinator) Done() bool {
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 
-	// Your code here.
-	c.waitTime = 60 // initialise the wait time
+	// Set the state
+	if len(files) == 0 {
+		c.State = "Done"
+		return &c
+	}
+
+	c.State = "Map"
+
+	c.waitTime = 20 // initialise the wait time
 	c.NMap = len(files)
 	c.NReduce = nReduce
-	c.State = "Map"
 
 	c.MapChannel = make(chan KeyValue, c.NMap)
 	c.ReduceChannel = make(chan int, c.NReduce)
