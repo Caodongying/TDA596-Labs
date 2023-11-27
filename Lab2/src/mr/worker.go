@@ -14,6 +14,10 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
 //
@@ -114,9 +118,9 @@ func CallExample() {
 // returns false if something goes wrong.
 //
 func call(rpcname string, args interface{}, reply interface{}) bool {
-	// c, err := rpc.DialHTTP("tcp", "127.0.0.1"+":1234")
-	sockname := coordinatorSock()
-	c, err := rpc.DialHTTP("unix", sockname)
+	c, err := rpc.DialHTTP("tcp", "172.31.28.21"+":8080")
+	//sockname := coordinatorSock()
+	//c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
@@ -164,6 +168,23 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 				enc.Encode(&kv)
 			}
 			os.Rename(tempFile.Name(), intermediateFile)
+
+			// upload files to aws S3
+			sess, err := session.NewSession(&aws.Config{
+				Region: aws.String("us-east-1"),
+			})
+
+			uploader := s3manager.NewUploader(sess)
+			result, err := uploader.Upload(&s3manager.UploadInput{
+				Bucket: aws.String("aws-logs-853658779161-us-east-1"),
+				Key: aws.String(""),
+				Body: bytes.NewReader([]byte(intermediateFile)),
+			})
+			if err != nil {
+				fmt.Println("failed to upload intermediate files for map tasks, %v", err)
+			}else{
+				fmt.Printf("file uploaded to, %s\n", aws.StringValue(result.Location))
+			}
 		}
 
 		args.StartTime = reply.StartTime
@@ -239,6 +260,23 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 		}
 	}
 	os.Rename(tempFile.Name(), reduceOutputFile)
+
+	// upload files to aws S3
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String("us-east-1"),
+	})
+
+	uploader := s3manager.NewUploader(sess)
+	result, err := uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String("aws-logs-853658779161-us-east-1"),
+		Key: aws.String(""),
+		Body: bytes.NewReader([]byte(reduceOutputFile)),
+	})
+	if err != nil {
+		fmt.Println("failed to upload reduce file, %v", err)
+	}else{
+		fmt.Printf("file uploaded to, %s\n", aws.StringValue(result.Location))
+	}
 
 	// Notify the coordinator that this is done
 	args.StartTime = reply.StartTime
