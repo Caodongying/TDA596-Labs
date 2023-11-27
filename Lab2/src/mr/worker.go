@@ -13,6 +13,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -175,6 +176,13 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 			}
 			os.Rename(tempFile.Name(), intermediateFile)
 
+			// open the intermediateFile
+			openedFile, err := os.Open(intermediateFile)
+			if err != nil {
+				fmt.Printf("failed to open intermediate files for map tasks, %v", err)
+				return
+			}
+			defer openedFile.Close()
 			// upload files to aws S3
 			sess, err := session.NewSession(&aws.Config{
 				Region: aws.String(region),
@@ -184,7 +192,7 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 			result, err := uploader.Upload(&s3manager.UploadInput{
 				Bucket: aws.String(bucket),
 				Key: aws.String(intermediateFile),
-				Body: bytes.NewReader([]byte(intermediateFile)),
+				Body: openedFile,
 			})
 			if err != nil {
 				fmt.Printf("failed to upload intermediate files for map tasks, %v", err)
@@ -203,6 +211,21 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 			fmt.Println("Execution time out!")
 		}
 	}
+}
+
+func matchesPattern(fileName string, reducer int) bool {
+	// "mr-*-5.txt"
+	// splits[0] = mr
+	// splits[1] is an integer
+	// splits[2] = reducer + ".txt"
+
+	splits := strings.Split(fileName, "-")
+
+	// fmt.Println("First item of split is ", splits[0])
+	// fmt.Println("Second item of split is ", splits[1])
+	// fmt.Println("Third item of split is ", splits[2])
+
+	return splits[0]=="mr" && splits[1]!="out" && splits[2]==strconv.Itoa(reducer)+".txt"
 }
 
 func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) string){
@@ -230,12 +253,10 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 
 	// Create an S3 client
 	s3Client := s3.New(sess)
-	filePattern := fmt.Sprintf("./mr-*-%d.txt", reducer)
 	
 	// List objects in S3 bucket with the specified prefix
 	input := &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucket),
-		Prefix: aws.String(filePattern),
 	}
 
 	result, err := s3Client.ListObjectsV2(input)
@@ -244,7 +265,12 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 		return
 	}
 
+	//fmt.Println("Result contents reading from intermediate file is ", result.Contents)
 	for _, obj := range result.Contents {
+		// Get the relavant intermediate files
+		if !matchesPattern(*obj.Key, reducer) {
+			continue
+		}
 		// Download the file via obj and get content
 		downloadInput := &s3.GetObjectInput {
 			Bucket: aws.String(bucket),
@@ -256,7 +282,7 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 			return
 		}
 		defer output.Body.Close()
-
+		
 		// before using NewDecoder, open the file
 		fileContent, err := io.ReadAll(output.Body)
 
@@ -264,6 +290,8 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 			fmt.Println("Cannot read the file", err)
 			return
 		}
+
+		//fmt.Println("fileContent for downloading intermediate file is", fileContent)
 		dec := json.NewDecoder(bytes.NewReader(fileContent))
 		// process the key-value pairs and put them in reduceDic
 
@@ -282,6 +310,8 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 				reduceDic[kv.Key] = []string{kv.Value}
 			}
 		}
+
+		//fmt.Println("reduceDic after processing ", reducer, " is ", reduceDic)
 
 	}
 
