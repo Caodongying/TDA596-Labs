@@ -119,7 +119,7 @@ func CallExample() {
 // returns false if something goes wrong.
 //
 func call(rpcname string, args interface{}, reply interface{}) bool {
-	c, err := rpc.DialHTTP("tcp", "172.31.28.21"+":8080")
+	c, err := rpc.DialHTTP("tcp", "18.212.231.166:8080")
 	//sockname := coordinatorSock()
 	//c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
@@ -186,7 +186,7 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 			if err != nil {
 				fmt.Println("failed to upload intermediate files for map tasks, %v", err)
 			}else{
-				fmt.Printf("file uploaded to, %s\n", aws.StringValue(result.Location))
+				fmt.Printf("file uploaded to, %s\n", aws.StringValue(&result.Location))
 			}
 		}
 
@@ -235,17 +235,17 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 		Prefix: aws.String(filePattern),
 	}
 
-	result, err := s3Client.ListObjectsV2Input(input)
+	result, err := s3Client.ListObjectsV2(input)
 	if err != nil {
 		fmt.Println("Error when getting files with the specified pattern", err)
 		return
 	}
 
-	for _, obj := range result.Content {
+	for _, obj := range result.Contents {
 		// Download the file via obj and get content
 		downloadInput := &s3.GetObjectInput {
 			Bucket: aws.String(bucket),
-			Key: aws.String(*obj.key),
+			Key: aws.String(*obj.Key),
 		}
 		output, err := s3Client.GetObject(downloadInput)
 		if err != nil {
@@ -312,7 +312,7 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 	if err != nil {
 		fmt.Println("failed to upload reduce file, %v", err)
 	}else{
-		fmt.Printf("file uploaded to, %s\n", aws.StringValue(resultUploader.Location))
+		fmt.Printf("file uploaded to, %s\n", aws.StringValue(&resultUploader.Location))
 	}
 
 	// Notify the coordinator that this is done
