@@ -119,7 +119,7 @@ func CallExample() {
 // returns false if something goes wrong.
 //
 func call(rpcname string, args interface{}, reply interface{}) bool {
-	c, err := rpc.DialHTTP("tcp", "18.212.231.166:8080")
+	c, err := rpc.DialHTTP("tcp", "34.227.228.18:8080")
 	//sockname := coordinatorSock()
 	//c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
@@ -139,9 +139,12 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 	bucket := "aws-logs-853658779161-us-east-1"
 	region := "us-east-1"
 	// read the file and call mapf
-	fileContent, err := os.ReadFile("./" + reply.MapTask.Value)
+	fileContent, err := os.ReadFile("../" + reply.MapTask.Value)
 	if err!=nil {
-		fmt.Printf("Error when opening file %v\n", reply.MapTask.Value)
+		currentDir, err := os.Getwd()
+		// Print the current working directory
+		fmt.Println("Current Directory:", currentDir)
+		fmt.Printf("Error when opening file %v\n", err)
 		return
 	} else {
 		// Split Map output into NReduce chunks
@@ -180,11 +183,11 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 			uploader := s3manager.NewUploader(sess)
 			result, err := uploader.Upload(&s3manager.UploadInput{
 				Bucket: aws.String(bucket),
-				Key: aws.String(""),
+				Key: aws.String(intermediateFile),
 				Body: bytes.NewReader([]byte(intermediateFile)),
 			})
 			if err != nil {
-				fmt.Println("failed to upload intermediate files for map tasks, %v", err)
+				fmt.Printf("failed to upload intermediate files for map tasks, %v", err)
 			}else{
 				fmt.Printf("file uploaded to, %s\n", aws.StringValue(&result.Location))
 			}
@@ -306,11 +309,11 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 	uploader := s3manager.NewUploader(sess)
 	resultUploader, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucket),
-		Key: aws.String(""),
+		Key: aws.String(reduceOutputFile),
 		Body: bytes.NewReader([]byte(reduceOutputFile)),
 	})
 	if err != nil {
-		fmt.Println("failed to upload reduce file, %v", err)
+		fmt.Printf("failed to upload reduce file, %v", err)
 	}else{
 		fmt.Printf("file uploaded to, %s\n", aws.StringValue(&resultUploader.Location))
 	}
