@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -35,6 +34,11 @@ type Coordinator struct {
 	LockState                   sync.Mutex
 	LockFinishedMapTaskCount    sync.Mutex
 	LockFinishedReduceTaskCount sync.Mutex
+	// For AWS
+	IP string
+	Port string
+	Bucket string
+	Region string
 }
 
 func (c *Coordinator) CheckIfWait() {
@@ -238,10 +242,7 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 func (c *Coordinator) server() {
 	rpc.Register(c)
 	rpc.HandleHTTP()
-	//l, e := net.Listen("tcp", ":1234")
-	sockname := coordinatorSock()
-	os.Remove(sockname)
-	l, e := net.Listen("unix", sockname)
+	l, e := net.Listen("tcp", "172.31.28.21:8080")
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
@@ -269,6 +270,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 		return &c
 	}
 
+	// Setup AWS
 	c.State = "Map"
 
 	c.waitTime = 10 // initialise the wait time

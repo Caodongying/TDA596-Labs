@@ -6,17 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/rpc"
 	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
@@ -135,6 +136,8 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 }
 
 func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValue) {
+	bucket := "aws-logs-853658779161-us-east-1"
+	region := "us-east-1"
 	// read the file and call mapf
 	fileContent, err := os.ReadFile("./" + reply.MapTask.Value)
 	if err!=nil {
@@ -171,12 +174,12 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 
 			// upload files to aws S3
 			sess, err := session.NewSession(&aws.Config{
-				Region: aws.String("us-east-1"),
+				Region: aws.String(region),
 			})
 
 			uploader := s3manager.NewUploader(sess)
 			result, err := uploader.Upload(&s3manager.UploadInput{
-				Bucket: aws.String("aws-logs-853658779161-us-east-1"),
+				Bucket: aws.String(bucket),
 				Key: aws.String(""),
 				Body: bytes.NewReader([]byte(intermediateFile)),
 			})
@@ -190,6 +193,7 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 		args.StartTime = reply.StartTime
 		args.IsMap = true
 		args.MapTask = reply.MapTask
+
 
 		mapFinishOk := call("Coordinator.RPCFinishTask", &args, &reply)
 		if !mapFinishOk {
@@ -205,17 +209,54 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 	// Read files that should be handled by the reducer
 	// if the key is in the dictionary, append the value to the list
 	// if the key doesn't exist, create an entry
+
 	reducer := reply.ReduceTask
 	reduceDic := make(map[string][]string)
-	files, err := filepath.Glob("./mr-*-" + strconv.Itoa(reducer) + ".txt")
+	// Create a session with S3 on AWS
+	bucket := "aws-logs-853658779161-us-east-1"
+	region := "us-east-1"
+
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(region),
+	})
+
 	if err != nil {
-		fmt.Println("Cannot get the files via pattern:", err)
+		fmt.Println("Error when reading from S3", err)
 		return
 	}
 
-	for _, file := range files {
+	// Create an S3 client
+	s3Client := s3.New(sess)
+	filePattern := fmt.Sprintf("./mr-*-%d.txt", reducer)
+	
+	// List objects in S3 bucket with the specified prefix
+	input := &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(filePattern),
+	}
+
+	result, err := s3Client.ListObjectsV2Input(input)
+	if err != nil {
+		fmt.Println("Error when getting files with the specified pattern", err)
+		return
+	}
+
+	for _, obj := range result.Content {
+		// Download the file via obj and get content
+		downloadInput := &s3.GetObjectInput {
+			Bucket: aws.String(bucket),
+			Key: aws.String(*obj.key),
+		}
+		output, err := s3Client.GetObject(downloadInput)
+		if err != nil {
+			fmt.Println("Error when downloading object", err)
+			return
+		}
+		defer output.Body.Close()
+
 		// before using NewDecoder, open the file
-		fileContent, err := os.ReadFile(file)
+		fileContent, err := io.ReadAll(output.Body)
+
 		if err != nil {
 			fmt.Println("Cannot read the file", err)
 			return
@@ -262,20 +303,16 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 	os.Rename(tempFile.Name(), reduceOutputFile)
 
 	// upload files to aws S3
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String("us-east-1"),
-	})
-
 	uploader := s3manager.NewUploader(sess)
-	result, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String("aws-logs-853658779161-us-east-1"),
+	resultUploader, err := uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(bucket),
 		Key: aws.String(""),
 		Body: bytes.NewReader([]byte(reduceOutputFile)),
 	})
 	if err != nil {
 		fmt.Println("failed to upload reduce file, %v", err)
 	}else{
-		fmt.Printf("file uploaded to, %s\n", aws.StringValue(result.Location))
+		fmt.Printf("file uploaded to, %s\n", aws.StringValue(resultUploader.Location))
 	}
 
 	// Notify the coordinator that this is done
