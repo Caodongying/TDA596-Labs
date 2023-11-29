@@ -265,7 +265,6 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 		return &c
 	}
 
-	// Setup AWS
 	c.State = "Map"
 
 	c.waitTime = 10 // initialise the wait time
