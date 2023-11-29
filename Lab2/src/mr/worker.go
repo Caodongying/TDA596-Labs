@@ -140,7 +140,7 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 	bucket := "aws-logs-853658779161-us-east-1"
 	region := "us-east-1"
 	// read the file and call mapf
-	fileContent, err := os.ReadFile("./" + reply.MapTask.Value) // change to ../ if using bash test
+	fileContent, err := os.ReadFile("../" + reply.MapTask.Value) // change to ../ if using bash test, change to ./ if local testing
 	if err!=nil {
 		currentDir, err := os.Getwd()
 		// Print the current working directory
