@@ -34,11 +34,6 @@ type Coordinator struct {
 	LockState                   sync.Mutex
 	LockFinishedMapTaskCount    sync.Mutex
 	LockFinishedReduceTaskCount sync.Mutex
-	// For AWS
-	IP string
-	Port string
-	Bucket string
-	Region string
 }
 
 func (c *Coordinator) CheckIfWait() {
