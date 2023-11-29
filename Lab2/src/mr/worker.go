@@ -120,7 +120,7 @@ func CallExample() {
 // returns false if something goes wrong.
 //
 func call(rpcname string, args interface{}, reply interface{}) bool {
-	c, err := rpc.DialHTTP("tcp", "34.227.228.18:8080")
+	c, err := rpc.DialHTTP("tcp", "54.91.102.195:8080")
 	//sockname := coordinatorSock()
 	//c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
@@ -140,7 +140,7 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 	bucket := "aws-logs-853658779161-us-east-1"
 	region := "us-east-1"
 	// read the file and call mapf
-	fileContent, err := os.ReadFile("../" + reply.MapTask.Value)
+	fileContent, err := os.ReadFile("./" + reply.MapTask.Value) // change to ../ if using bash test
 	if err!=nil {
 		currentDir, err := os.Getwd()
 		// Print the current working directory
