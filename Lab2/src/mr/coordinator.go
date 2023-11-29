@@ -13,22 +13,19 @@ import (
 	"time"
 )
 
-// ADD LOCKS EVERYWHERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// Careful with variable names!!!!!!
-
 type Coordinator struct {
 	// TaskState for map/reduce tasks: Unstarted, Running, Finished
 	// MapTaskStates and ReduceTaskStates have fixed length
 	MapTaskStates           []KeyValue // Key: FileName, Value: TaskState
 	ReduceTaskStates        []KeyValue // Key: ReduceTask, Value: TaskState
-	MapChannel              chan KeyValue
-	ReduceChannel           chan int
-	State                   string // Map, Reduce, Wait    ?????????, Done
-	FinishedMapTaskCount    int
-	FinishedReduceTaskCount int
-	NMap                    int
-	NReduce                 int
-	waitTime                int
+	MapChannel              chan KeyValue // Stores unstarted map tasks
+	ReduceChannel           chan int // Stores unstarted reduce tasks
+	State                   string // Map, Reduce, Wait, Done. This is the state of the coordinator
+	FinishedMapTaskCount    int // Used for switching coordinator state
+	FinishedReduceTaskCount int // Used for switching coordinator state
+	NMap                    int // total number of map tasks, i.e. number of input files
+	NReduce                 int // total number of reducers
+	waitTime                int // timeout, set to 10 second for this lab
 	// locks
 	LockMapTaskStates           sync.Mutex
 	LockReduceTaskStates        sync.Mutex
@@ -56,7 +53,7 @@ func (c *Coordinator) CheckIfWait() {
 	}
 }
 
-// Your code here -- RPC handlers for the worker to call.
+// RPC handlers for the worker to call.
 func (c *Coordinator) RPCGiveTask(args *Args, reply *Reply) error {
 	// 1. Start on a new Map Task
 	// 2. All map tasks started but not all finished, wait
@@ -186,9 +183,7 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 		c.LockFinishedMapTaskCount.Lock()
 		c.FinishedMapTaskCount++
 		fmt.Println("Map task file is", args.MapTask.Value, "FinishedMapTaskCount is ", c.FinishedMapTaskCount, " NMap is ", c.NMap)
-		// c.LockFinishedMapTaskCount.Unlock()
 
-		// c.LockFinishedMapTaskCount.Lock()
 		if c.FinishedMapTaskCount == c.NMap {
 			c.LockFinishedMapTaskCount.Unlock()
 			c.LockState.Lock()
@@ -210,9 +205,7 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 
 		c.LockFinishedReduceTaskCount.Lock()
 		c.FinishedReduceTaskCount++
-		// c.LockFinishedReduceTaskCount.Unlock()
 
-		// c.LockFinishedReduceTaskCount.Lock()
 		if c.FinishedReduceTaskCount == c.NReduce {
 			c.LockFinishedReduceTaskCount.Unlock()
 			c.LockState.Lock()
@@ -226,19 +219,11 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 	return nil
 }
 
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
-	return nil
-}
 
 // start a thread that listens for RPCs from worker.go
 func (c *Coordinator) server() {
 	rpc.Register(c)
 	rpc.HandleHTTP()
-	//l, e := net.Listen("tcp", ":1234")
 	sockname := coordinatorSock()
 	os.Remove(sockname)
 	l, e := net.Listen("unix", sockname)
@@ -258,7 +243,7 @@ func (c *Coordinator) Done() bool {
 }
 
 // create a Coordinator.
-// main/mrcoordinator.go calls this function.
+// main/mrcoordinator.go calls this functoin.
 // nReduce is the number of reduce tasks to use.
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
