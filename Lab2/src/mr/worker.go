@@ -195,7 +195,7 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 
 	// Apply reducef on the dictionary
 	// create the output file
-	reduceOutputFile := "./mr-out-" + strconv.Itoa(reducer) + ".txt"  // not sure if .txt is needed
+	reduceOutputFile := "./mr-out-" + strconv.Itoa(reducer) + ".txt"
 	temp := "tempFile.txt"
 	tempFile, err := ioutil.TempFile("./", temp)
 	if err != nil {
