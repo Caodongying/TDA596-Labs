@@ -85,34 +85,6 @@ func Worker(mapf func(string, string) []KeyValue,
 		}
 	}
 }
-//
-// example function to show how to make an RPC call to the coordinator.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func CallExample() {
-
-	// declare an argument structure.
-	args := ExampleArgs{}
-
-	// fill in the argument(s).
-	args.X = 99
-
-	// declare a reply structure.
-	reply := ExampleReply{}
-
-	// send the RPC request, wait for the reply.
-	// the "Coordinator.Example" tells the
-	// receiving server that we'd like to call
-	// the Example() method of struct Coordinator.
-	ok := call("Coordinator.Example", &args, &reply)
-	if ok {
-		// reply.FileName should be 100.
-		fmt.Printf("reply.FileName %v\n", reply.Y)
-	} else {
-		fmt.Printf("call failed!\n")
-	}
-}
 
 //
 // send an RPC request to the coordinator, wait for the response.
@@ -214,17 +186,12 @@ func handleMapTask(args *Args, reply *Reply, mapf func(string, string) []KeyValu
 }
 
 func matchesPattern(fileName string, reducer int) bool {
-	// "mr-*-5.txt"
+	// Expected format: "mr-*-5.txt"
 	// splits[0] = mr
 	// splits[1] is an integer
 	// splits[2] = reducer + ".txt"
 
 	splits := strings.Split(fileName, "-")
-
-	// fmt.Println("First item of split is ", splits[0])
-	// fmt.Println("Second item of split is ", splits[1])
-	// fmt.Println("Third item of split is ", splits[2])
-
 	return splits[0]=="mr" && splits[1]!="out" && splits[2]==strconv.Itoa(reducer)+".txt"
 }
 
@@ -265,7 +232,6 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 		return
 	}
 
-	//fmt.Println("Result contents reading from intermediate file is ", result.Contents)
 	for _, obj := range result.Contents {
 		// Get the relavant intermediate files
 		if !matchesPattern(*obj.Key, reducer) {
@@ -291,7 +257,6 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 			return
 		}
 
-		//fmt.Println("fileContent for downloading intermediate file is", fileContent)
 		dec := json.NewDecoder(bytes.NewReader(fileContent))
 		// process the key-value pairs and put them in reduceDic
 
@@ -310,14 +275,11 @@ func handleReduceTask(args *Args, reply *Reply, reducef func(string, []string) s
 				reduceDic[kv.Key] = []string{kv.Value}
 			}
 		}
-
-		//fmt.Println("reduceDic after processing ", reducer, " is ", reduceDic)
-
 	}
 
 	// Apply reducef on the dictionary
 	// create the output file
-	reduceOutputFile := "./mr-out-" + strconv.Itoa(reducer) + ".txt"  // not sure if .txt is needed
+	reduceOutputFile := "./mr-out-" + strconv.Itoa(reducer) + ".txt"
 	temp := "tempFile.txt"
 	tempFile, err := ioutil.TempFile("./", temp)
 	if err != nil {

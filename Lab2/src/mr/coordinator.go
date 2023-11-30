@@ -12,9 +12,6 @@ import (
 	"time"
 )
 
-// ADD LOCKS EVERYWHERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// Careful with variable names!!!!!!
-
 type Coordinator struct {
 	// TaskState for map/reduce tasks: Unstarted, Running, Finished
 	// MapTaskStates and ReduceTaskStates have fixed length
@@ -22,7 +19,7 @@ type Coordinator struct {
 	ReduceTaskStates        []KeyValue // Key: ReduceTask, Value: TaskState
 	MapChannel              chan KeyValue
 	ReduceChannel           chan int
-	State                   string // Map, Reduce, Wait    ?????????, Done
+	State                   string // Map, Reduce, Wait, Done
 	FinishedMapTaskCount    int
 	FinishedReduceTaskCount int
 	NMap                    int
@@ -222,14 +219,6 @@ func (c *Coordinator) RPCFinishTask(args *Args, reply *Reply) error {
 		}
 	}
 
-	return nil
-}
-
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
 	return nil
 }
 
