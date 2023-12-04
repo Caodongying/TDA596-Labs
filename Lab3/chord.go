@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"strconv"
 )
@@ -12,13 +13,15 @@ type Key string
 
 type NodeAddress string
 
+type FileName string
+
 type Node struct {
     Address     NodeAddress
-    FingerTable []NodeAddress
+    FingerTable [40]NodeAddress
     Predecessor NodeAddress
     Successors  []NodeAddress
 
-    Bucket map[Key]string
+    Bucket map[Key]FileName
 }
 
 func main() {
@@ -44,19 +47,19 @@ func main() {
 
 	// Instantiate the node
 	node := Node{
-	    Address: createIdentifier([]byte(*ipAddressClient + ":" + strconv.Itoa(*portClient))),
+	    Address: createIdentifier([]byte(*ipAddressClient)) + createIdentifier([]byte(strconv.Itoa(*portClient))),
+		Successors: make([]NodeAddress, *r),
+		
 	}
 
 	// Check to join or to create a new chord ring
 	// IMPROVE HERE
-
 	if *ipAddressChord == "" && *portChord == -1 {
 		// starts a new ring
-		createRing()
-		
+		node.createRing()
 	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
-		joinRing()
+		node.joinRing(*ipAddressChord, *portChord)
 	}
 	// open a TCP socket
 	listener, err := net.Listen("tcp", *ipAddressClient + ":" + strconv.Itoa(*portClient))
@@ -89,22 +92,65 @@ func main() {
 	fmt.Println("id", *id)
 }
 
-func createRing() {
+func (node *Node) createRing() {
 	// initialize the successor list and finger table
+	node.Successors[0] = node.Address
+
+	for index := range node.FingerTable {
+		node.FingerTable[index] = node.Address
+	}
+}
+
+func (node *Node) findSuccessor() {
 
 }
 
-func joinRing() {
+func (node *Node) closestPrecedingNode(id NodeAddress) {
 
+}
+
+func (node *Node) joinRing(ipChord string, portChord int) {
+	// find the node responsible for string
+	conn, err := net.Dial("tcp", ipChord + ":" + strconv.Itoa(portChord))
+	if err != nil {
+		fmt.Println("Error when dialing the chord node", err)
+		return
+	}
+	defer conn.Close()
+
+	// write to the connection: findSuccessor
+	_, writeErr := conn.Write([]byte("findSuccessor:" + node.Address))
+	if writeErr != nil {
+		fmt.Println("Error when sending request to the chord node", err)
+		return
+	}
+	
+	// receive the successor
+	buf, readErr := ioutil.ReadAll(conn)
+	if readErr != nil {
+		fmt.Println("Error when receiving successor from the chord node", readErr)
+		return
+	}
+	node.Successors[0] = NodeAddress(buf)
 }
 
 func createIdentifier(name []byte) NodeAddress{
-	// create a 40-character hash key for the name
+	// create a 20-character hash key for the name
 	h := sha1.New()
 	return NodeAddress(h.Sum(name))
 }
 
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
+
+	// Read the incoming request
+	buf, readErr := ioutil.ReadAll(conn)
+	if readErr != nil {
+		fmt.Println("Error when reading request from other node", readErr)
+		return
+	}
+	request := string(buf)
+
+	requestSplit 
 }
 
