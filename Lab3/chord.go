@@ -36,7 +36,11 @@ func main() {
 	flag.Parse()
 
 	// TBA - validate the parameters
-	// TBA -		crash if there's one and only one flag is given in command line
+	// crash if only ipAddressChord or portChord is given in command line
+	if (*ipAddressChord == "" && *portChord == -1) && (*ipAddressChord != "" && *portChord != -1) {
+		fmt.Println("Please use either both -ja and -jp, or neither of them")
+		return
+	}
 
 	// Instantiate the node
 	node := Node{
@@ -50,7 +54,7 @@ func main() {
 		// starts a new ring
 		createRing()
 		
-	} else if *ipAddressChord != "" && *portChord != -1{
+	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
 		joinRing()
 	}
