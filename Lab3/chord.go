@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -16,12 +17,12 @@ type NodeAddress string
 type FileName string
 
 type Node struct {
-    Address     NodeAddress
-    FingerTable [40]NodeAddress
-    Predecessor NodeAddress
-    Successors  []NodeAddress
+	Address     NodeAddress
+	FingerTable [40]NodeAddress
+	Predecessor NodeAddress
+	Successors  []NodeAddress
 
-    Bucket map[Key]FileName
+	Bucket map[Key]FileName
 }
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 	ipAddressClient := flag.String("a", "127.0.0.1", "chord client's IP address")
 	portClient := flag.Int("p", 8080, "chord client's port number")
 	ipAddressChord := flag.String("ja", "", "IP address of machine running a chord node") // improve later
-	portChord := flag.Int("jp", -1, "Port number") // improve later
+	portChord := flag.Int("jp", -1, "Port number")                                        // improve later
 	ts := flag.Int("ts", 30000, "time in milliseconds between invocations of ‘stabilize’")
 	tff := flag.Int("tff", 10000, "time in milliseconds between invocations of ‘fix fingers’")
 	tcp := flag.Int("tcp", 30000, "time in milliseconds between invocations of ‘check predecessor’")
@@ -47,7 +48,7 @@ func main() {
 
 	// Instantiate the node
 	node := Node{
-	    Address: NodeAddress(*ipAddressClient + ":" + strconv.Itoa(*portClient)),
+		Address:    NodeAddress(*ipAddressClient + ":" + strconv.Itoa(*portClient)),
 		Successors: make([]NodeAddress, *r),
 	}
 
@@ -61,7 +62,7 @@ func main() {
 		node.joinRing(*ipAddressChord, *portChord)
 	}
 	// open a TCP socket
-	listener, err := net.Listen("tcp", *ipAddressClient + ":" + strconv.Itoa(*portClient))
+	listener, err := net.Listen("tcp", *ipAddressClient+":"+strconv.Itoa(*portClient))
 	if err != nil {
 		fmt.Println("Error when listening to ip:port", err)
 		return
@@ -100,17 +101,20 @@ func (node *Node) createRing() {
 	}
 }
 
-func (node *Node) findSuccessor(address NodeAddress) NodeAddress{
-	
+func (node *Node) findSuccessor(address NodeAddress) NodeAddress {
+	if slices.Contains(node.Successors, address) {
+		return address
+	}
+	return node.closestPrecedingNode(address)
 }
 
-func (node *Node) closestPrecedingNode(id NodeAddress) {
+func (node *Node) closestPrecedingNode(id NodeAddress) NodeAddress {
 
 }
 
 func (node *Node) joinRing(ipChord string, portChord int) {
 	// find the node responsible for string
-	conn, err := net.Dial("tcp", ipChord + ":" + strconv.Itoa(portChord))
+	conn, err := net.Dial("tcp", ipChord+":"+strconv.Itoa(portChord))
 	if err != nil {
 		fmt.Println("Error when dialing the chord node", err)
 		return
@@ -123,7 +127,7 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 		fmt.Println("Error when sending request to the chord node", err)
 		return
 	}
-	
+
 	// receive the successor
 	buf, readErr := ioutil.ReadAll(conn)
 	if readErr != nil {
@@ -132,7 +136,6 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 	}
 	node.Successors[0] = NodeAddress(buf)
 }
-
 
 func handleConnection(conn net.Conn, node Node) {
 	defer conn.Close()
@@ -147,14 +150,13 @@ func handleConnection(conn net.Conn, node Node) {
 
 	requestSplit := strings.Split(request, "-")
 	switch requestSplit[0] {
-		case "findSuccessor" :
-			successor := node.findSuccessor(NodeAddress(requestSplit[1]))
-			// send successor back to the node
-			_, writeErr := conn.Write([]byte(NodeAddress(successor)))
-			if writeErr != nil {
-				fmt.Println("Error when sending request to the chord node", err)
-				return
-			}
+	case "findSuccessor":
+		successor := node.findSuccessor(NodeAddress(requestSplit[1]))
+		// send successor back to the node
+		_, writeErr := conn.Write([]byte(NodeAddress(successor)))
+		if writeErr != nil {
+			fmt.Println("Error when sending request to the chord node", err)
+			return
+		}
 	}
 }
-
