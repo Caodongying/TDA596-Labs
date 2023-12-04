@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha1"
 	"flag"
 	"fmt"
 	"net"
@@ -36,17 +37,12 @@ func main() {
 
 	// TBA - validate the parameters
 	// TBA -		crash if there's one and only one flag is given in command line
-	// Instantiate the node
-	
-	node := Node{
-	    Address: "",
-		FingerTable: [],
-		Predecessor: "NodeAddress"
-		Successors:  [],
 
-		//Bucket map[Key]string
-		
+	// Instantiate the node
+	node := Node{
+	    Address: createIdentifier([]byte(*ipAddressClient + ":" + strconv.Itoa(*portClient))),
 	}
+
 	// Check to join or to create a new chord ring
 	// IMPROVE HERE
 
@@ -96,6 +92,12 @@ func createRing() {
 
 func joinRing() {
 
+}
+
+func createIdentifier(name []byte) NodeAddress{
+	// create a 40-character hash key for the name
+	h := sha1.New()
+	return NodeAddress(h.Sum(name))
 }
 
 func handleConnection(conn net.Conn) {
