@@ -1,12 +1,12 @@
 package main
 
 import (
-	"crypto/sha1"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"strconv"
+	"strings"
 )
 
 type Key string
@@ -47,9 +47,8 @@ func main() {
 
 	// Instantiate the node
 	node := Node{
-	    Address: createIdentifier([]byte(*ipAddressClient)) + createIdentifier([]byte(strconv.Itoa(*portClient))),
+	    Address: NodeAddress(*ipAddressClient + ":" + strconv.Itoa(*portClient)),
 		Successors: make([]NodeAddress, *r),
-		
 	}
 
 	// Check to join or to create a new chord ring
@@ -77,7 +76,7 @@ func main() {
 			return
 		}
 
-		go handleConnection(conn)
+		go handleConnection(conn, node)
 	}
 
 	// remove these later
@@ -101,8 +100,8 @@ func (node *Node) createRing() {
 	}
 }
 
-func (node *Node) findSuccessor() {
-
+func (node *Node) findSuccessor(address NodeAddress) NodeAddress{
+	
 }
 
 func (node *Node) closestPrecedingNode(id NodeAddress) {
@@ -119,7 +118,7 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 	defer conn.Close()
 
 	// write to the connection: findSuccessor
-	_, writeErr := conn.Write([]byte("findSuccessor:" + node.Address))
+	_, writeErr := conn.Write([]byte("findSuccessor-" + node.Address))
 	if writeErr != nil {
 		fmt.Println("Error when sending request to the chord node", err)
 		return
@@ -134,13 +133,8 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 	node.Successors[0] = NodeAddress(buf)
 }
 
-func createIdentifier(name []byte) NodeAddress{
-	// create a 20-character hash key for the name
-	h := sha1.New()
-	return NodeAddress(h.Sum(name))
-}
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, node Node) {
 	defer conn.Close()
 
 	// Read the incoming request
@@ -151,6 +145,16 @@ func handleConnection(conn net.Conn) {
 	}
 	request := string(buf)
 
-	requestSplit 
+	requestSplit := strings.Split(request, "-")
+	switch requestSplit[0] {
+		case "findSuccessor" :
+			successor := node.findSuccessor(NodeAddress(requestSplit[1]))
+			// send successor back to the node
+			_, writeErr := conn.Write([]byte(NodeAddress(successor)))
+			if writeErr != nil {
+				fmt.Println("Error when sending request to the chord node", err)
+				return
+			}
+	}
 }
 
