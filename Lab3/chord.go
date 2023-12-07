@@ -89,7 +89,9 @@ func main() {
 	}
 
 	// Create a goroutin to start the three timers
-	go node.setTimers(*ts, *tff, *tcp)
+	go node.setStablizeTimer(*ts)
+	go node.setFixFingerTimer(*tff)
+	go node.setCheckPredecessorTimer(*tcp)
 
 	// Create a goroutin to handle stdin command
 	go node.handleThreeCommands()
@@ -157,18 +159,26 @@ func (node *Node) storeFile(filePath string){
 
 }
 
-func (node *Node) setTimers(ts int, tff int, tcp int) {
+func (node *Node) setStablizeTimer(ts int) {
 	for {
 		timerStablize := time.NewTimer(time.Duration(ts) * time.Millisecond)
 		<-timerStablize.C
 		go node.stablize()
+	}
+}
 
-		timerFixFinger := time.NewTimer(time.Duration(tff) * time.Millisecond)
-		<-timerFixFinger.C
+func (node *Node) setFixFingerTimer(tff int) {
+	for {
+		timerStablize := time.NewTimer(time.Duration(tff) * time.Millisecond)
+		<-timerStablize.C
 		go node.fixFinger()
+	}
+}
 
-		timerCheckPredecessor := time.NewTimer(time.Duration(tcp) * time.Millisecond)
-		<-timerCheckPredecessor.C
+func (node *Node) setCheckPredecessorTimer(tcp int) {
+	for {
+		timerStablize := time.NewTimer(time.Duration(tcp) * time.Millisecond)
+		<-timerStablize.C
 		go node.checkPredecessor()
 	}
 }
@@ -231,7 +241,7 @@ func (node *Node) find(id string) SuccessorFound {
 	nextNode := NodeIP{ID: node.ID, Address: node.Address}
 	found := false
 	for i := 0 ; (i < 40 && !found) ; i++ {
-		temp := requestToFindSuccessor(id, nextNode.Address) // execute findSuccessor
+		temp := makeRequest("findSuccessor", id, nextNode.Address) // execute findSuccessor
 		found = temp.Found
 		nextNode = temp.NodeIP
 	}
@@ -242,51 +252,43 @@ func (node *Node) find(id string) SuccessorFound {
 	return SuccessorFound{Found: false, NodeIP: NodeIP{}}
 }
 
-func requestToFindSuccessor(nodeID string, ipAddressChord NodeAddress) SuccessorFound{
+func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) SuccessorFound {
 	// nodeID: the node that wants to join the ring
 	// ipAddressChord: the node that is already on the ring. We want to communicate to this ring and join the ring via this node
 	// This function returns found or not + the successor (NodeIP)
 	conn, err := net.Dial("tcp", string(ipAddressChord))
 	if err != nil {
 		fmt.Println("Error when dialing the chord node", err)
-		return false, NodeIP{}
+		return SuccessorFound{Found: false, NodeIP: NodeIP{}}
 	}
 	defer conn.Close()
 
-	// write to the connection: findSuccessor
-	_, writeErr := conn.Write([]byte("findSuccessor-" + nodeID))
+	// write to the connection
+	_, writeErr := conn.Write([]byte(operation + "-" + nodeID))
 	if writeErr != nil {
 		fmt.Println("Error when sending request to the chord node", err)
-		return false, NodeIP{}
+		return SuccessorFound{Found: false, NodeIP: NodeIP{}}
 	}
 
-	// receive the successor
-	// todo: how to receive both bool and nodeIP fromt the stream
-	// below is not fully implemented
+	// receive the result: found, successor
 	decoder := gob.NewDecoder(conn)
-	receiveSuccessor := NodeIP{}
+	receiveSuccessor := SuccessorFound{}
 	errDecode := decoder.Decode(receiveSuccessor)
 	if errDecode != nil {
 		fmt.Println("Error when receiving successor from the chord node", errDecode)
-		return false, NodeIP{}
+		return SuccessorFound{Found: false, NodeIP: NodeIP{}}
 	}
 
-	// can be false.
-	// need more work
-	return true, receiveSuccessor
-}
-
-func requestToFind(nodeID string, ipAddressChord NodeAddress) (bool, NodeIP) {
-
+	return receiveSuccessor
 }
 
 func (node *Node) joinRing(ipChord string, portChord int) {
 	// call find
-	found, successor := requestToFind(node.ID, NodeAddress(ipChord+":"+strconv.Itoa(portChord)))
-	if !found {
+	temp := makeRequest("find", node.ID, NodeAddress(ipChord+":"+strconv.Itoa(portChord)))
+	if !temp.Found {
 		return
 	}
-	node.Successors[0] = successor
+	node.Successors[0] = temp.NodeIP
 }
 
 func handleConnection(conn net.Conn, node Node) {
@@ -303,19 +305,23 @@ func handleConnection(conn net.Conn, node Node) {
 	requestSplit := strings.Split(request, "-")
 	switch requestSplit[0] {
 	case "find":
-		successor := node.find(requestSplit[1])
+		result := node.find(requestSplit[1])
 		// send successor back to the node
 		encoder := gob.NewEncoder(conn)
-		errEncode := encoder.Encode(successor)
+		errEncode := encoder.Encode(result)
 		if errEncode != nil {
 			fmt.Println("Error when sending request to the chord node", errEncode)
 		    return
 		}
-		// _, writeErr := conn.Write([]byte(successor))
-		// if writeErr != nil {
-		// 	fmt.Println("Error when sending request to the chord node", writeErr)
-		// 	return
-		// }
+	case "findSuccessor":
+		result := node.findSuccessor(requestSplit[1])
+		// send successor back to the node
+		encoder := gob.NewEncoder(conn)
+		errEncode := encoder.Encode(result)
+		if errEncode != nil {
+			fmt.Println("Error when sending request to the chord node", errEncode)
+		    return
+		}
 	}
 }
 
