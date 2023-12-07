@@ -184,19 +184,22 @@ func (node *Node) setCheckPredecessorTimer(tcp int) {
 }
 
 func (node *Node) stablize(){
+	// temp contains predecessor / empty NodeIP{}
 	temp := makeRequest("findPredecessor", "", node.Successors[0].Address)
 	if !temp.Found {
 		// no predecessor found
 		return
 	}
+	// predecessor exsits
 	if temp.NodeIP.ID > node.ID && temp.NodeIP.ID < node.Successors[0].ID {
 		node.Successors[0] = temp.NodeIP
 	}
-	// notify
+	// send notify to successor[0]
+	makeNotifyRequest(NodeIP{ID: node.ID, Address: node.Address}, node.Successors[0].Address)
 }
 
-func (node *Node) notify(currentNode *Node) {
-	if node.Predecessor == nil || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) {
+func (node *Node) notify(currentNode NodeIP) {
+	if node.Predecessor.ID == "" || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) {
 		node.Predecessor = currentNode
 	}
 }
@@ -253,6 +256,23 @@ func (node *Node) find(id string) NodeFound {
 	return NodeFound{Found: false, NodeIP: NodeIP{}}
 }
 
+func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
+	conn, err := net.Dial("tcp", string(ipAddress))
+	if err != nil {
+		fmt.Println("Error when dialing the chord node", err)
+		return
+	}
+	defer conn.Close()
+
+	// parameter sent to the ipAddress: id and address
+	// this is to avoid using encoder and creating another ugly structure
+	_, writeErr := conn.Write([]byte("notify" + "-" + nodeIP.ID + "-" + string(nodeIP.Address)))
+	if writeErr != nil {
+		fmt.Println("Error when sending request to the chord node", writeErr)
+		return
+	}
+}
+
 func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) NodeFound {
 	// nodeID: for finding successor, the node that wants to join the ring;
 	//		   otherwise, for finding predecessor, nodeID will be empty
@@ -272,8 +292,8 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	// (3) findPredecessor ---> findPredecessor-
 	_, writeErr := conn.Write([]byte(operation + "-" + nodeID))
 	if writeErr != nil {
-		fmt.Println("Error when sending request to the chord node", err)
-		return NodeFound{Found: false, NodeIP: NodeIP{}}
+		fmt.Println("Error when sending request to the chord node", writeErr)
+		return NodeFound{} // not sure
 	}
 
 	// receive the result: found, successor
@@ -328,7 +348,28 @@ func handleConnection(conn net.Conn, node Node) {
 			fmt.Println("Error when sending request to the chord node", errEncode)
 		    return
 		}
+	case "findPredecessor":
+		predecessor := node.Predecessor
+		result := NodeFound{}
+		if predecessor.ID != "" {
+			result.Found = true
+			result.NodeIP = predecessor
+		}
+		// send predecessor back to the node
+		encoder := gob.NewEncoder(conn)
+		errEncode := encoder.Encode(result)
+		if errEncode != nil {
+			fmt.Println("Error when sending request to the chord node", errEncode)
+		    return
+		}
+	case "notify":
+		id := requestSplit[1]
+		address := requestSplit[2]
+		node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
+		return
 	}
+
+
 }
 
 func createIdentifier(name []byte) NodeAddress{
