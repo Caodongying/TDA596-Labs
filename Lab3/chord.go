@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net"
 	"os"
 	"strconv"
@@ -24,6 +25,7 @@ type Node struct {
 	ID string
 	Address     NodeAddress
 	FingerTable [40]NodeIP
+	NextFinger int
 	Predecessor NodeIP
 	Successors  []NodeIP
 
@@ -205,11 +207,27 @@ func (node *Node) notify(currentNode NodeIP) {
 }
 
 func (node *Node) fixFinger(){
-	fmt.Println("fixFinger")
+	if node.NextFinger >= 40 {
+		node.NextFinger = 0
+	}
+	// todo - finish this
+	nextNode, _ := strconv.Atoi("0x" + node.ID)
+	nextNode += int(math.Pow(2, float64(node.NextFinger)))
+	nextNode %= int(math.Pow(2, 40))
+	//node.FingerTable[node.NextFinger] = makeRequest("find", strconv.Itoa(nextNode))
+
 }
 
 func (node *Node) checkPredecessor(){
-	fmt.Println("checkPredecessor")
+	// check if predecessor is still running
+	conn, err := net.Dial("tcp", string(node.Predecessor.Address))
+	defer conn.Close()
+	if err != nil {
+		node.Predecessor = NodeIP{}
+		fmt.Println("Predecessor has failed", err)
+		return
+	}
+	return
 }
 
 
