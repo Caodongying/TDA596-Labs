@@ -211,12 +211,17 @@ func (node *Node) fixFinger(){
 	if node.NextFinger >= 160 {
 		node.NextFinger = 0
 	}
-	// todo - finish this
+
 	nextNode, _ := strconv.Atoi("0x" + node.ID)
 	nextNode += int(math.Pow(2, float64(node.NextFinger)))
 	nextNode %= int(math.Pow(2, 160))
-	//node.FingerTable[node.NextFinger] = makeRequest("find", strconv.Itoa(nextNode))
-
+	temp := node.find(strconv.Itoa(nextNode))
+	if temp.Found {
+		node.FingerTable[node.NextFinger] = temp.NodeIP
+	}else {
+		fmt.Println("No suceesor found for node", nextNode)
+	}
+	node.NextFinger++
 }
 
 func (node *Node) checkPredecessor(){
@@ -318,7 +323,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	// receive the result: found, successor
 	decoder := gob.NewDecoder(conn)
 	receiveNode := NodeFound{}
-	errDecode := decoder.Decode(receiveNode)
+	errDecode := decoder.Decode(receiveNode) // todo - not sure
 	if errDecode != nil {
 		fmt.Println("Error when receiving successor from the chord node", errDecode)
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
