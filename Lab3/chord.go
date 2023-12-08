@@ -144,6 +144,8 @@ func (node *Node) handleThreeCommands() {
 				node.storeFile(splitScan[1])
 			case "PrintState":
 				node.printState()
+			default:
+				fmt.Println("You idiot. Con! Ni sha bi! 傻逼! Idioot!")
 			}
 				
 		}
