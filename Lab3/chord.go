@@ -23,10 +23,10 @@ type NodeAddress string
 type FileName string
 
 type Node struct {
-	ID string
+	ID          string
 	Address     NodeAddress
 	FingerTable [160]NodeIP
-	NextFinger int
+	NextFinger  int
 	Predecessor NodeIP
 	Successors  []NodeIP
 
@@ -35,12 +35,12 @@ type Node struct {
 
 // Get the IP address via node id
 type NodeIP struct {
-	ID string
+	ID      string
 	Address NodeAddress
 }
 
 type NodeFound struct {
-	Found bool
+	Found  bool
 	NodeIP NodeIP
 }
 
@@ -66,7 +66,7 @@ func main() {
 	}
 
 	// make sure that the given chord node is not the same as the client node
-	// todo 
+	// todo
 
 	// Instantiate the node
 	node := Node{
@@ -77,7 +77,7 @@ func main() {
 	// Check if there's an customized id or not
 	if *id != "" {
 		node.ID = *id
-	} else{
+	} else {
 		node.ID = createIdentifier(string(node.Address))
 	}
 
@@ -147,18 +147,18 @@ func (node *Node) handleThreeCommands() {
 			default:
 				fmt.Println("Invalid command! Supported commands: Lookup, StoreFile, PrintState")
 			}
-				
+
 		}
 	}
 }
 
-func (node *Node) lookUp(fileName string){
+func (node *Node) lookUp(fileName string) {
 	// 1 - hash the filename
 	key := createIdentifier(fileName)
 	// 2 - find the successor of the file key
 	temp := node.find(key)
 	if !temp.Found {
-		fmt.Println(fileName, " is not found!")
+		fmt.Println("File location is not found!")
 		return
 	}
 	// 3 - print out the node information
@@ -166,7 +166,7 @@ func (node *Node) lookUp(fileName string){
 	fmt.Printf("Node Information: \n  %x  %v", temp.NodeIP.ID, temp.NodeIP.Address)
 }
 
-func (node *Node) printState(){
+func (node *Node) printState() {
 	fmt.Printf("Chord Client's node information:\n %x  %v", node.ID, node.Address)
 	fmt.Println("Successor Nodes:")
 	for _, successor := range node.Successors {
@@ -177,7 +177,7 @@ func (node *Node) printState(){
 	}
 }
 
-func (node *Node) storeFile(filePath string){
+func (node *Node) storeFile(filePath string) {
 
 }
 
@@ -205,7 +205,7 @@ func (node *Node) setCheckPredecessorTimer(tcp int) {
 	}
 }
 
-func (node *Node) stablize(){
+func (node *Node) stablize() {
 	// temp contains predecessor / empty NodeIP{}
 	temp := makeRequest("findPredecessor", "", node.Successors[0].Address)
 	if !temp.Found {
@@ -226,7 +226,7 @@ func (node *Node) notify(currentNode NodeIP) {
 	}
 }
 
-func (node *Node) fixFinger(){
+func (node *Node) fixFinger() {
 	if node.NextFinger >= 160 {
 		node.NextFinger = 0
 	}
@@ -237,13 +237,13 @@ func (node *Node) fixFinger(){
 	temp := node.find(strconv.Itoa(nextNode))
 	if temp.Found {
 		node.FingerTable[node.NextFinger] = temp.NodeIP
-	}else {
+	} else {
 		fmt.Println("No suceesor found for node", nextNode)
 	}
 	node.NextFinger++
 }
 
-func (node *Node) checkPredecessor(){
+func (node *Node) checkPredecessor() {
 	// check if predecessor is still running
 	conn, err := net.Dial("tcp", string(node.Predecessor.Address))
 	defer conn.Close()
@@ -255,14 +255,13 @@ func (node *Node) checkPredecessor(){
 	return
 }
 
-
 func (node *Node) createRing() {
 	// initialize the successor list and finger table
 	node.Successors[0] = NodeIP{ID: node.ID, Address: node.Address}
 
 	for index := range node.FingerTable {
 		node.FingerTable[index] = NodeIP{
-			ID: node.ID,
+			ID:      node.ID,
 			Address: node.Address,
 		}
 	}
@@ -276,8 +275,8 @@ func (node *Node) findSuccessor(id string) NodeFound {
 }
 
 func (node *Node) closestPrecedingNode(id string) NodeIP {
-	for i := 160 ; i > 0 ; i-- {
-		if (node.FingerTable[i].ID > node.ID && node.FingerTable[i].ID <= id) {
+	for i := 160; i > 0; i-- {
+		if node.FingerTable[i].ID > node.ID && node.FingerTable[i].ID <= id {
 			return node.FingerTable[i]
 		}
 	}
@@ -287,7 +286,7 @@ func (node *Node) closestPrecedingNode(id string) NodeIP {
 func (node *Node) find(id string) NodeFound {
 	nextNode := NodeIP{ID: node.ID, Address: node.Address}
 	found := false
-	for i := 0 ; (i < 160 && !found) ; i++ {
+	for i := 0; i < 160 && !found; i++ {
 		temp := makeRequest("findSuccessor", id, nextNode.Address) // execute findSuccessor
 		found = temp.Found
 		nextNode = temp.NodeIP
@@ -380,7 +379,7 @@ func handleConnection(conn net.Conn, node Node) {
 		errEncode := encoder.Encode(result)
 		if errEncode != nil {
 			fmt.Println("Error when sending request to the chord node", errEncode)
-		    return
+			return
 		}
 	case "findSuccessor":
 		result := node.findSuccessor(requestSplit[1])
@@ -389,7 +388,7 @@ func handleConnection(conn net.Conn, node Node) {
 		errEncode := encoder.Encode(result)
 		if errEncode != nil {
 			fmt.Println("Error when sending request to the chord node", errEncode)
-		    return
+			return
 		}
 	case "findPredecessor":
 		predecessor := node.Predecessor
@@ -403,7 +402,7 @@ func handleConnection(conn net.Conn, node Node) {
 		errEncode := encoder.Encode(result)
 		if errEncode != nil {
 			fmt.Println("Error when sending request to the chord node", errEncode)
-		    return
+			return
 		}
 	case "notify":
 		id := requestSplit[1]
@@ -412,10 +411,9 @@ func handleConnection(conn net.Conn, node Node) {
 		return
 	}
 
-
 }
 
-func createIdentifier(name string) string{
+func createIdentifier(name string) string {
 	// name is ip:port
 	// generate a 40-character hash key for the name
 	h := sha1.New()
@@ -428,4 +426,3 @@ func createIdentifier(name string) string{
 	}
 	return result
 }
-
