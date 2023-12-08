@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"net"
@@ -24,7 +25,7 @@ type FileName string
 type Node struct {
 	ID string
 	Address     NodeAddress
-	FingerTable [40]NodeIP
+	FingerTable [160]NodeIP
 	NextFinger int
 	Predecessor NodeIP
 	Successors  []NodeIP
@@ -77,7 +78,7 @@ func main() {
 	if *id != "" {
 		node.ID = *id
 	} else{
-		node.ID = string(createIdentifier([]byte(*ipAddressClient)) + createIdentifier([]byte(strconv.Itoa(*portClient))))
+		node.ID = createIdentifier(node.Address)
 	}
 
 	// Check to join or to create a new chord ring
@@ -207,13 +208,13 @@ func (node *Node) notify(currentNode NodeIP) {
 }
 
 func (node *Node) fixFinger(){
-	if node.NextFinger >= 40 {
+	if node.NextFinger >= 160 {
 		node.NextFinger = 0
 	}
 	// todo - finish this
 	nextNode, _ := strconv.Atoi("0x" + node.ID)
 	nextNode += int(math.Pow(2, float64(node.NextFinger)))
-	nextNode %= int(math.Pow(2, 40))
+	nextNode %= int(math.Pow(2, 160))
 	//node.FingerTable[node.NextFinger] = makeRequest("find", strconv.Itoa(nextNode))
 
 }
@@ -251,7 +252,7 @@ func (node *Node) findSuccessor(id string) NodeFound {
 }
 
 func (node *Node) closestPrecedingNode(id string) NodeIP {
-	for i := 40 ; i > 0 ; i-- {
+	for i := 160 ; i > 0 ; i-- {
 		if (node.FingerTable[i].ID > node.ID && node.FingerTable[i].ID <= id) {
 			return node.FingerTable[i]
 		}
@@ -262,7 +263,7 @@ func (node *Node) closestPrecedingNode(id string) NodeIP {
 func (node *Node) find(id string) NodeFound {
 	nextNode := NodeIP{ID: node.ID, Address: node.Address}
 	found := false
-	for i := 0 ; (i < 40 && !found) ; i++ {
+	for i := 0 ; (i < 160 && !found) ; i++ {
 		temp := makeRequest("findSuccessor", id, nextNode.Address) // execute findSuccessor
 		found = temp.Found
 		nextNode = temp.NodeIP
@@ -390,8 +391,17 @@ func handleConnection(conn net.Conn, node Node) {
 
 }
 
-func createIdentifier(name []byte) NodeAddress{
-	// create a 20-character hash key for the name
+func createIdentifier(address NodeAddress) string{
+	// address is ip:port
+	// generate a 40-character hash key for the address
 	h := sha1.New()
-	return NodeAddress(h.Sum(name))
+	io.WriteString(h, string(address))
+	temp := string(h.Sum(nil))
+	tempArr := strings.Split(temp, " ")
+	result := ""
+	for _, value := range tempArr {
+		result += fmt.Sprintf("%s", value)
+	}
+	return result
 }
+
