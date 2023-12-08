@@ -16,7 +16,6 @@ import (
 	"time"
 )
 
-type Key string
 
 type NodeAddress string
 
@@ -30,7 +29,7 @@ type Node struct {
 	Predecessor NodeIP
 	Successors  []NodeIP
 
-	Bucket map[Key]FileName
+	Bucket map[string]FileName
 }
 
 // Get the IP address via node id
@@ -152,18 +151,19 @@ func (node *Node) handleThreeCommands() {
 	}
 }
 
-func (node *Node) lookUp(fileName string) {
+func (node *Node) lookUp(fileName string) NodeIP{
 	// 1 - hash the filename
 	key := createIdentifier(fileName)
 	// 2 - find the successor of the file key
 	temp := node.find(key)
 	if !temp.Found {
 		fmt.Println("File location is not found!")
-		return
+		return NodeIP{}
 	}
 	// 3 - print out the node information
 	//     id, ip, port
 	fmt.Printf("Node Information: \n  %x  %v", temp.NodeIP.ID, temp.NodeIP.Address)
+	return temp.NodeIP
 }
 
 func (node *Node) printState() {
@@ -178,7 +178,42 @@ func (node *Node) printState() {
 }
 
 func (node *Node) storeFile(filePath string) {
+	// 1 - see if the given filepath exists locally or not
+	// 2 - parse the path and get the filename
+	// 3 - call loopUp(filename)
+	// 4 - make a request to the node that should store the file
+	//     read the file, write it to the connection
+	// 5 - In the destination node, store/upload the file
+	//     (in handleConnection) read from the connection, store the file
+	//     update node.Bucket
+	_, err := os.Stat(filePath)
+	if err != nil {
+		fmt.Println("File does not exist!")
+		return
+	}
 
+	filePathSplit := strings.Split(filePath, "\\") // split by \
+	fileName := filePathSplit[len(filePathSplit)-1]
+	destination := node.lookUp(fileName)
+	if destination.ID == "" { // here we don't print error as it's already done in lookUp()
+		return
+	}
+
+	conn, err := net.Dial("tcp", string(destination.Address))
+	if err != nil {
+		fmt.Println("Error when dialing the destination")
+		return
+	}
+
+	defer conn.Close()
+
+	fileData, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Println("Error when opening the file!")
+		return
+	}
+
+	conn.Write(append([]byte("storeFile-"+fileName+"-"), fileData...)) // todo - no "-" allowed in fileName
 }
 
 func (node *Node) setStablizeTimer(ts int) {
@@ -409,8 +444,20 @@ func handleConnection(conn net.Conn, node Node) {
 		address := requestSplit[2]
 		node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
 		return
+	case "storeFile": 
+		fileName := requestSplit[1]
+		fileContent := requestSplit[2]
+		for i := 3; i < len(requestSplit) ; i++{
+			fileContent += "-" + requestSplit[i]
+		}
+		err := os.WriteFile(fileName, []byte(fileContent), 0644)
+		if err != nil {
+			fmt.Println("Error when writing the file", err)
+			return
+		}
+		key := createIdentifier(fileName)
+		node.Bucket[key] = FileName(fileName)
 	}
-
 }
 
 func createIdentifier(name string) string {
