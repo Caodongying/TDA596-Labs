@@ -78,7 +78,7 @@ func main() {
 	if *id != "" {
 		node.ID = *id
 	} else{
-		node.ID = createIdentifier(node.Address)
+		node.ID = createIdentifier(string(node.Address))
 	}
 
 	// Check to join or to create a new chord ring
@@ -145,7 +145,7 @@ func (node *Node) handleThreeCommands() {
 			case "PrintState":
 				node.printState()
 			default:
-				fmt.Println("You idiot. Con! Ni sha bi! 傻逼! Idioot!")
+				fmt.Println("Invalid command! Supported commands: Lookup, StoreFile, PrintState")
 			}
 				
 		}
@@ -153,11 +153,28 @@ func (node *Node) handleThreeCommands() {
 }
 
 func (node *Node) lookUp(fileName string){
-
+	// 1 - hash the filename
+	key := createIdentifier(fileName)
+	// 2 - find the successor of the file key
+	temp := node.find(key)
+	if !temp.Found {
+		fmt.Println(fileName, " is not found!")
+		return
+	}
+	// 3 - print out the node information
+	//     id, ip, port
+	fmt.Printf("Node Information: \n  %x  %v", temp.NodeIP.ID, temp.NodeIP.Address)
 }
 
 func (node *Node) printState(){
-
+	fmt.Printf("Chord Client's node information:\n %x  %v", node.ID, node.Address)
+	fmt.Println("Successor Nodes:")
+	for _, successor := range node.Successors {
+		fmt.Printf("successor %x  %v\n", successor.ID, successor.Address)
+	}
+	for _, finger := range node.FingerTable {
+		fmt.Printf("finger %x  %v\n", finger.ID, finger.Address)
+	}
 }
 
 func (node *Node) storeFile(filePath string){
@@ -398,11 +415,11 @@ func handleConnection(conn net.Conn, node Node) {
 
 }
 
-func createIdentifier(address NodeAddress) string{
-	// address is ip:port
-	// generate a 40-character hash key for the address
+func createIdentifier(name string) string{
+	// name is ip:port
+	// generate a 40-character hash key for the name
 	h := sha1.New()
-	io.WriteString(h, string(address))
+	io.WriteString(h, string(name))
 	temp := string(h.Sum(nil))
 	tempArr := strings.Split(temp, " ")
 	result := ""
