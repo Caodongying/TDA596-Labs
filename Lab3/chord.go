@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/sha1"
 	"encoding/gob"
 	"encoding/hex"
@@ -89,7 +88,9 @@ func main() {
 		node.createRing()
 	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
+		fmt.Println("start to join the ring")
 		node.joinRing(*ipAddressChord, *portChord)
+		fmt.Println("joining the ring is done")
 	}
 
 	// Create a goroutin to start the three timers
@@ -106,7 +107,7 @@ func main() {
 		fmt.Println("Error when listening to ip:port", err)
 		return
 	}
-	defer listener.Close()
+	//defer listener.Close()
 
 	for {
 		// Accept incoming connections
@@ -197,7 +198,7 @@ func (node *Node) storeFile(filePath string) {
 		return
 	}
 
-	defer conn.Close()
+	//defer conn.Close()
 
 	fileData, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -276,8 +277,8 @@ func (node *Node) checkPredecessor() {
 		return
 	}
 
-	conn, err := net.Dial("tcp", string(node.Predecessor.Address))
-	defer conn.Close()
+	_, err := net.Dial("tcp", string(node.Predecessor.Address))
+	//defer conn.Close()
 	if err != nil {
 		node.Predecessor = NodeIP{}
 		fmt.Println("Predecessor has failed", err)
@@ -330,12 +331,15 @@ func (node *Node) find(id string) NodeFound {
 }
 
 func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
+	if ipAddress == "" {
+		return
+	}
 	conn, err := net.Dial("tcp", string(ipAddress))
 	if err != nil {
 		fmt.Println("Error when dialing the chord node", err)
 		return
 	}
-	defer conn.Close()
+	//defer conn.Close()
 
 	// parameter sent to the ipAddress: id and address
 	// this is to avoid using encoder and creating another ugly structure
@@ -356,7 +360,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 		fmt.Println("Error when dialing the chord node", err)
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
 	}
-	defer conn.Close()
+	//defer conn.Close()
 
 	// write to the connection
 	// operations can be:
@@ -370,16 +374,15 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	}
 
 	// receive the result: found, successor
-	reader := io.Reader(conn)
-	decoder := gob.NewDecoder(reader)
-	receiveNode := new(NodeFound)
-	errDecode := decoder.Decode(receiveNode) // todo - not sure
+	decoder := gob.NewDecoder(conn)
+	var receiveNode NodeFound
+	errDecode := decoder.Decode(&receiveNode) // todo - not sure
 	if errDecode != nil {
 		fmt.Println("Error when receiving successor from the chord node", errDecode)
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
 	}
 
-	return *receiveNode
+	return receiveNode
 }
 
 func (node *Node) joinRing(ipChord string, portChord int) {
@@ -392,7 +395,7 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 }
 
 func handleConnection(conn net.Conn, node Node) {
-	defer conn.Close()
+	//defer conn.Close()
 
 	// Read the incoming request
 	buf, readErr := ioutil.ReadAll(conn)
@@ -405,27 +408,24 @@ func handleConnection(conn net.Conn, node Node) {
 	requestSplit := strings.Split(request, "-")
 	fmt.Println("request split is ", requestSplit)
 
-	binBuff := new(bytes.Buffer)
 	switch requestSplit[0] {
 	case "find":
 		result := node.find(requestSplit[1])
 		fmt.Println("result is ", result.NodeIP.Address)
 		// send successor back to the node
-		encoder := gob.NewEncoder(binBuff)
+		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
-		conn.Write(binBuff.Bytes())
 		if errEncode != nil {
-			fmt.Println("Error when sending request to the chord node", errEncode)
+			fmt.Println("Error when encoding ", errEncode)
 			return
 		}
 	case "findSuccessor":
 		result := node.findSuccessor(requestSplit[1])
 		// send successor back to the node
-		encoder := gob.NewEncoder(binBuff)
+		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
-		conn.Write(binBuff.Bytes())
 		if errEncode != nil {
-			fmt.Println("Error when sending request to the chord node", errEncode)
+			fmt.Println("Error when encoding ", errEncode)
 			return
 		}
 	case "findPredecessor":
@@ -436,11 +436,10 @@ func handleConnection(conn net.Conn, node Node) {
 			result.NodeIP = predecessor
 		}
 		// send predecessor back to the node
-		encoder := gob.NewEncoder(binBuff)
+		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
-		conn.Write(binBuff.Bytes())
 		if errEncode != nil {
-			fmt.Println("Error when sending request to the chord node", errEncode)
+			fmt.Println("Error when encoding ", errEncode)
 			return
 		}
 	case "notify":
