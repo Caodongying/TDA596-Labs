@@ -2,8 +2,10 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha1"
 	"encoding/gob"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -46,12 +48,12 @@ type NodeFound struct {
 func main() {
 	// parse the command
 	ipAddressClient := flag.String("a", "127.0.0.1", "chord client's IP address")
-	portClient := flag.Int("p", 8080, "chord client's port number")
+	portClient := flag.Int("p", 1234, "chord client's port number")
 	ipAddressChord := flag.String("ja", "", "IP address of machine running a chord node") // improve later
 	portChord := flag.Int("jp", -1, "Port number")                                        // improve later
-	ts := flag.Int("ts", 30000, "time in milliseconds between invocations of ‘stabilize’")
-	tff := flag.Int("tff", 10000, "time in milliseconds between invocations of ‘fix fingers’")
-	tcp := flag.Int("tcp", 30000, "time in milliseconds between invocations of ‘check predecessor’")
+	ts := flag.Int("ts", 3000, "time in milliseconds between invocations of ‘stabilize’")
+	tff := flag.Int("tff", 1000, "time in milliseconds between invocations of ‘fix fingers’")
+	tcp := flag.Int("tcp", 3000, "time in milliseconds between invocations of ‘check predecessor’")
 	r := flag.Int("r", 4, "number of successors maintained by the Chord client")
 	id := flag.String("i", "", "customized chord identifier")
 
@@ -116,18 +118,8 @@ func main() {
 
 		go handleConnection(conn, node)
 	}
-
-	// remove these later
-	fmt.Println("ipAddressClient", *ipAddressClient)
-	fmt.Println("portClient", *portClient)
-	fmt.Println("ipAddressChord", *ipAddressChord)
-	fmt.Println("portChord", *portChord)
-	fmt.Println("ts", *ts)
-	fmt.Println("tff", *tff)
-	fmt.Println("tcp", *tcp)
-	fmt.Println("r", *r)
-	fmt.Println("id", *id)
 }
+
 
 func (node *Node) handleThreeCommands() {
 	for {
@@ -167,7 +159,7 @@ func (node *Node) lookUp(fileName string) NodeIP{
 }
 
 func (node *Node) printState() {
-	fmt.Printf("Chord Client's node information:\n %x  %v", node.ID, node.Address)
+	fmt.Printf("Chord Client's node information:\n %x  %v\n", node.ID, node.Address)
 	fmt.Println("Successor Nodes:")
 	for _, successor := range node.Successors {
 		fmt.Printf("successor %x  %v\n", successor.ID, successor.Address)
@@ -280,6 +272,10 @@ func (node *Node) fixFinger() {
 
 func (node *Node) checkPredecessor() {
 	// check if predecessor is still running
+	if node.Predecessor.ID== "" {
+		return
+	}
+
 	conn, err := net.Dial("tcp", string(node.Predecessor.Address))
 	defer conn.Close()
 	if err != nil {
@@ -374,15 +370,16 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	}
 
 	// receive the result: found, successor
-	decoder := gob.NewDecoder(conn)
-	receiveNode := NodeFound{}
+	reader := io.Reader(conn)
+	decoder := gob.NewDecoder(reader)
+	receiveNode := new(NodeFound)
 	errDecode := decoder.Decode(receiveNode) // todo - not sure
 	if errDecode != nil {
 		fmt.Println("Error when receiving successor from the chord node", errDecode)
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
 	}
 
-	return receiveNode
+	return *receiveNode
 }
 
 func (node *Node) joinRing(ipChord string, portChord int) {
@@ -403,15 +400,20 @@ func handleConnection(conn net.Conn, node Node) {
 		fmt.Println("Error when reading request from other node", readErr)
 		return
 	}
-	request := string(buf)
+	request := string(buf[:])
 
 	requestSplit := strings.Split(request, "-")
+	fmt.Println("request split is ", requestSplit)
+
+	binBuff := new(bytes.Buffer)
 	switch requestSplit[0] {
 	case "find":
 		result := node.find(requestSplit[1])
+		fmt.Println("result is ", result.NodeIP.Address)
 		// send successor back to the node
-		encoder := gob.NewEncoder(conn)
+		encoder := gob.NewEncoder(binBuff)
 		errEncode := encoder.Encode(result)
+		conn.Write(binBuff.Bytes())
 		if errEncode != nil {
 			fmt.Println("Error when sending request to the chord node", errEncode)
 			return
@@ -419,8 +421,9 @@ func handleConnection(conn net.Conn, node Node) {
 	case "findSuccessor":
 		result := node.findSuccessor(requestSplit[1])
 		// send successor back to the node
-		encoder := gob.NewEncoder(conn)
+		encoder := gob.NewEncoder(binBuff)
 		errEncode := encoder.Encode(result)
+		conn.Write(binBuff.Bytes())
 		if errEncode != nil {
 			fmt.Println("Error when sending request to the chord node", errEncode)
 			return
@@ -433,8 +436,9 @@ func handleConnection(conn net.Conn, node Node) {
 			result.NodeIP = predecessor
 		}
 		// send predecessor back to the node
-		encoder := gob.NewEncoder(conn)
+		encoder := gob.NewEncoder(binBuff)
 		errEncode := encoder.Encode(result)
+		conn.Write(binBuff.Bytes())
 		if errEncode != nil {
 			fmt.Println("Error when sending request to the chord node", errEncode)
 			return
@@ -464,12 +468,8 @@ func createIdentifier(name string) string {
 	// name is ip:port
 	// generate a 40-character hash key for the name
 	h := sha1.New()
-	io.WriteString(h, string(name))
-	temp := string(h.Sum(nil))
-	tempArr := strings.Split(temp, " ")
-	result := ""
-	for _, value := range tempArr {
-		result += fmt.Sprintf("%s", value)
-	}
-	return result
+	io.WriteString(h, name)
+	identifier := hex.EncodeToString(h.Sum(nil))
+	fmt.Println("Identifier is ", identifier)
+	return identifier
 }
