@@ -357,6 +357,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	// ipAddressChord: the node that is already on the ring. We want to communicate to this ring and join the ring via this node
 	// This function returns found or not + the successor (NodeIP)
 	conn, err := net.Dial("tcp", string(ipAddressChord))
+	fmt.Println("chord node address: ", string(ipAddressChord))
 	if err != nil {
 		fmt.Println("Error when dialing the chord node", err)
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
