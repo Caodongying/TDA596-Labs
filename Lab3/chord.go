@@ -85,11 +85,11 @@ func main() {
 	// IMPROVE HERE
 	if *ipAddressChord == "" && *portChord == -1 {
 		// starts a new ring
-		node.createRing()
+		go node.createRing()
 	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
 		fmt.Println("start to join the ring")
-		node.joinRing(*ipAddressChord, *portChord)
+		go node.joinRing(*ipAddressChord, *portChord)
 		fmt.Println("joining the ring is done")
 	}
 
@@ -320,6 +320,7 @@ func (node *Node) find(id string) NodeFound {
 	found := false
 	for i := 0; i < 160 && !found; i++ {
 		temp := makeRequest("findSuccessor", id, nextNode.Address) // execute findSuccessor
+		fmt.Println(i, " - found is: ", found)
 		found = temp.Found
 		nextNode = temp.NodeIP
 	}
@@ -336,7 +337,7 @@ func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
 	}
 	conn, err := net.Dial("tcp", string(ipAddress))
 	if err != nil {
-		fmt.Println("Error when dialing the chord node", err)
+		fmt.Println("Error when dialing the node", err)
 		return
 	}
 	//defer conn.Close()
@@ -345,7 +346,7 @@ func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
 	// this is to avoid using encoder and creating another ugly structure
 	_, writeErr := conn.Write([]byte("notify" + "-" + nodeIP.ID + "-" + string(nodeIP.Address)))
 	if writeErr != nil {
-		fmt.Println("Error when sending request to the chord node", writeErr)
+		fmt.Println("Error when sending request to the node", writeErr)
 		return
 	}
 }
@@ -387,7 +388,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 
 func (node *Node) joinRing(ipChord string, portChord int) {
 	// call find
-	temp := makeRequest("find", node.ID, NodeAddress(ipChord+":"+strconv.Itoa(portChord)))
+	temp := makeRequest("find", node.ID, NodeAddress(ipChord + ":" + strconv.Itoa(portChord)))
 	if !temp.Found {
 		return
 	}
@@ -421,6 +422,7 @@ func handleConnection(conn net.Conn, node Node) {
 		}
 	case "findSuccessor":
 		result := node.findSuccessor(requestSplit[1])
+		fmt.Println("result of findSuccessor is: found - ", result.Found)
 		// send successor back to the node
 		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
