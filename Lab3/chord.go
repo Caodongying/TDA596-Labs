@@ -302,9 +302,9 @@ func (node *Node) stabilize() {
 		makeNotifyRequest(NodeIP{ID: node.ID, Address: node.Address}, node.Successors[0].Address)
 		return
 	}
-	// predecessor exits
+	// predecessor exists
 	if temp.NodeIP.ID > node.ID && temp.NodeIP.ID < node.Successors[0].ID {
-		fmt.Println("Predecessor exits. Update successor to ", temp.NodeIP)
+		fmt.Println("Predecessor exists. Update successor to ", temp.NodeIP)
 		node.Successors[0] = temp.NodeIP
 	}
 	// send notify to successor[0]
@@ -313,10 +313,8 @@ func (node *Node) stabilize() {
 
 func (node *Node) notify(currentNode NodeIP) {
 	if node.Predecessor.ID == "" || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) {
-		fmt.Println("predecessor: " + node.Predecessor.ID)
-		fmt.Println("current: " + currentNode.ID)
+		fmt.Println("predecessor before: " + node.Predecessor.ID)
 		node.Predecessor = currentNode
-		fmt.Println("predecessor: " + node.Predecessor.ID)
 	}
 }
 
@@ -531,7 +529,10 @@ func handleConnection(conn net.Conn, node Node) {
 	case "notify":
 		id := requestSplit[1]
 		address := requestSplit[2]
-		node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
+		if id != node.ID { // A node can't be it's own predecessor
+			node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
+			fmt.Println("predecessor after:" + node.Predecessor.ID)
+		}
 		return
 	case "storeFile":
 		fileName := requestSplit[1]
