@@ -88,6 +88,7 @@ func main() {
 		go node.createRing()
 	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
+		fmt.Println("start to join the ring")
 		go node.joinRing(*ipAddressChord, *portChord)
 	}
 
@@ -414,6 +415,9 @@ func handleConnection(conn net.Conn, node Node) {
 	request := string(buf[:])
 
 	requestSplit := strings.Split(request, "-")
+
+	fmt.Println("request split is ", requestSplit)
+
 	switch requestSplit[0] {
 	case "find":
 		result := node.find(requestSplit[1])
