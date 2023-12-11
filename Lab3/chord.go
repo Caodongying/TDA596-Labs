@@ -161,7 +161,7 @@ func main() {
 		fmt.Println("Error when listening to ip:port", err)
 		return
 	}
-	////defer listener.Close()
+	defer listener.Close()
 
 	for {
 		// Accept incoming connections
@@ -213,18 +213,18 @@ func (node *Node) lookUp(fileName string) NodeIP {
 	}
 	// 3 - print out the node information
 	//     id, ip, port
-	fmt.Printf("Node Information: \n  %x  %v", temp.NodeIP.ID, temp.NodeIP.Address)
+	fmt.Printf("Node Information: \n  %v  %v", temp.NodeIP.ID, temp.NodeIP.Address)
 	return temp.NodeIP
 }
 
 func (node *Node) printState() {
-	fmt.Printf("Chord Client's node information:\n %x  %v\n", node.ID, node.Address)
+	fmt.Printf("Chord Client's node information:\n %v  %v\n", node.ID, node.Address)
 	fmt.Println("Successor Nodes:")
 	for _, successor := range node.Successors {
-		fmt.Printf("successor %x  %v\n", successor.ID, successor.Address)
+		fmt.Printf("successor %v  %v\n", successor.ID, successor.Address)
 	}
 	for _, finger := range node.FingerTable {
-		fmt.Printf("finger %x  %v\n", finger.ID, finger.Address)
+		fmt.Printf("finger %v  %v\n", finger.ID, finger.Address)
 	}
 }
 
@@ -256,7 +256,7 @@ func (node *Node) storeFile(filePath string) {
 		return
 	}
 
-	////defer conn.Close()
+	defer conn.Close()
 
 	fileData, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -326,9 +326,10 @@ func (node *Node) fixFinger() {
 	temp := node.find(strconv.Itoa(nextNode))
 	if temp.Found {
 		node.FingerTable[node.NextFinger] = temp.NodeIP
-	} else {
-		fmt.Println("No suceesor found for node", nextNode)
 	}
+	// } else {
+	// 	fmt.Println("No suceesor found for node", nextNode)
+	// }
 	node.NextFinger++
 }
 
@@ -338,8 +339,8 @@ func (node *Node) checkPredecessor() {
 		return
 	}
 
-	_, err := net.Dial("tcp", string(node.Predecessor.Address))
-	//defer conn.Close()
+	conn, err := net.Dial("tcp", string(node.Predecessor.Address))
+	defer conn.Close()
 	if err != nil {
 		node.Predecessor = NodeIP{}
 		fmt.Println("Predecessor has failed", err)
@@ -380,6 +381,9 @@ func (node *Node) find(id string) NodeFound {
 	nextNode := NodeIP{ID: node.ID, Address: node.Address}
 	found := false
 	for i := 0; i < 160 && !found; i++ {
+		if nextNode.Address == "" {
+			continue
+		}
 		temp := makeRequest("findSuccessor", id, nextNode.Address) // execute findSuccessor
 		found = temp.Found
 		nextNode = temp.NodeIP
@@ -397,7 +401,7 @@ func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
 		fmt.Println("Error when dialing the node", err)
 		return
 	}
-	////defer conn.Close()
+	defer conn.Close()
 
 	// parameter sent to the ipAddress: id and address
 	// this is to avoid using encoder and creating another ugly structure
@@ -419,7 +423,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
 	}
 	//fmt.Printf("Successfully dialing node (%v)\n", operation)
-	//defer conn.Close()
+	defer conn.Close()
 
 	// write to the connection
 	// operations can be:
@@ -464,7 +468,7 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 }
 
 func handleConnection(conn net.Conn, node Node) {
-	//defer conn.Close()
+	defer conn.Close()
 
 	// Read the incoming request
 	buf, readErr := ioutil.ReadAll(conn)
@@ -476,8 +480,10 @@ func handleConnection(conn net.Conn, node Node) {
 
 	requestSplit := strings.Split(request, "-")
 
-	//fmt.Println("request split is ", requestSplit)
-
+	if requestSplit[0] == "find" {
+		fmt.Println("request split is ", requestSplit)
+	}
+	
 	switch requestSplit[0] {
 	case "find":
 		result := node.find(requestSplit[1])
