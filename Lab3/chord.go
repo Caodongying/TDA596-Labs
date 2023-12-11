@@ -58,69 +58,69 @@ func main() {
 	flag.Parse()
 
 	//validate the parameters
-	if net.ParseIP(*ipAddressClient) == nil {
-		fmt.Println("Please use a valid IP address for the client")
-		return
-	}
+	// if net.ParseIP(*ipAddressClient) == nil {
+	// 	fmt.Println("Please use a valid IP address for the client")
+	// 	return
+	// }
 
-	if *portClient < 1024 || *portClient > 65535 {
-		fmt.Println("Please use a number between 1024 and 65535 as a port number for the client")
-		return
-	}
+	// if *portClient < 1024 || *portClient > 65535 {
+	// 	fmt.Println("Please use a number between 1024 and 65535 as a port number for the client")
+	// 	return
+	// }
 
-	if net.ParseIP(*ipAddressChord) == nil {
-		fmt.Println("Please use a valid IP address for the chord node")
-		return
-	}
+	// if net.ParseIP(*ipAddressChord) == nil {
+	// 	fmt.Println("Please use a valid IP address for the chord node")
+	// 	return
+	// }
 
-	if *portChord < 1024 || *portChord > 65535 {
-		fmt.Println("Please use a number between 1024 and 65535 as a port number for the chord node")
-		return
-	}
+	// if *portChord < 1024 || *portChord > 65535 {
+	// 	fmt.Println("Please use a number between 1024 and 65535 as a port number for the chord node")
+	// 	return
+	// }
 
-	if *ts < 1 || *ts > 60000 {
-		fmt.Println("Please use a number between 1 and 60000 as a value for ts")
-		return
-	}
+	// if *ts < 1 || *ts > 60000 {
+	// 	fmt.Println("Please use a number between 1 and 60000 as a value for ts")
+	// 	return
+	// }
 
-	if *tff < 1 || *tff > 60000 {
-		fmt.Println("Please use a number between 1 and 60000 as a value for tff")
-		return
-	}
+	// if *tff < 1 || *tff > 60000 {
+	// 	fmt.Println("Please use a number between 1 and 60000 as a value for tff")
+	// 	return
+	// }
 
-	if *tcp < 1 || *tcp > 60000 {
-		fmt.Println("Please use a number between 1 and 60000 as a value for tcp")
-		return
-	}
+	// if *tcp < 1 || *tcp > 60000 {
+	// 	fmt.Println("Please use a number between 1 and 60000 as a value for tcp")
+	// 	return
+	// }
 
-	if *tcp < 1 || *tcp > 32 {
-		fmt.Println("Please use a number between 1 and 32 as a value for r")
-		return
-	}
+	// if *tcp < 1 || *tcp > 32 {
+	// 	fmt.Println("Please use a number between 1 and 32 as a value for r")
+	// 	return
+	// }
 
-	if *id != "" {
-		if len(*id) != 40 {
-			fmt.Println("Please use an identifier with 40 characters")
-			return
-		}
-		_, err := strconv.ParseUint(*id, 16, 64)
-		if err != nil {
-			fmt.Println("Please use an identifier consisting of hexcode characters")
-			return
-		}
-	}
+	// if *id != "" {
+	// 	if len(*id) != 40 {
+	// 		fmt.Println("Please use an identifier with 40 characters")
+	// 		return
+	// 	}
+	// 	_, err := strconv.ParseUint(*id, 16, 64)
+	// 	if err != nil {
+	// 		fmt.Println("Please use an identifier consisting of hexcode characters")
+	// 		return
+	// 	}
+	// }
 
-	// crash if only ipAddressChord or portChord is given in command line
-	if (*ipAddressChord == "" && *portChord == -1) && (*ipAddressChord != "" && *portChord != -1) {
-		fmt.Println("Please use either both -ja and -jp, or neither of them")
-		return
-	}
+	// // crash if only ipAddressChord or portChord is given in command line
+	// if (*ipAddressChord == "" && *portChord == -1) && (*ipAddressChord != "" && *portChord != -1) {
+	// 	fmt.Println("Please use either both -ja and -jp, or neither of them")
+	// 	return
+	// }
 
-	// make sure that the given chord node is not the same as the client node
-	if *ipAddressChord == *ipAddressClient && *portChord == *portClient {
-		fmt.Println("Please make sure the new node has a different IP address and port number than the existing node")
-		return
-	}
+	// // make sure that the given chord node is not the same as the client node
+	// if *ipAddressChord == *ipAddressClient && *portChord == *portClient {
+	// 	fmt.Println("Please make sure the new node has a different IP address and port number than the existing node")
+	// 	return
+	// }
 
 	// Instantiate the node
 	node := Node{
@@ -367,7 +367,7 @@ func (node *Node) findSuccessor(id string) NodeFound {
 }
 
 func (node *Node) closestPrecedingNode(id string) NodeIP {
-	for i := 160; i > 0; i-- {
+	for i := 159; i >= 0; i-- {
 		if node.FingerTable[i].ID > node.ID && node.FingerTable[i].ID <= id {
 			return node.FingerTable[i]
 		}
@@ -386,7 +386,7 @@ func (node *Node) find(id string) NodeFound {
 	if found {
 		return NodeFound{Found: true, NodeIP: nextNode}
 	}
-	fmt.Println("Successor not found!")
+	//fmt.Println("Successor not found!")
 	return NodeFound{Found: false, NodeIP: NodeIP{}}
 }
 
@@ -432,6 +432,13 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	}
 	//fmt.Printf("Successfully sending request to node (%v)\n", operation)
 
+	if  cw, ok := conn.(interface{ CloseWrite() error }); ok {
+        cw.CloseWrite()
+    } else {
+        fmt.Errorf("Connection doesn't implement CloseWrite method")
+		return NodeFound{}
+    }
+
 	// receive the result: found, successor
 	decoder := gob.NewDecoder(conn)
 	//receiveNode := NodeFound{}
@@ -468,7 +475,7 @@ func handleConnection(conn net.Conn, node Node) {
 
 	requestSplit := strings.Split(request, "-")
 
-	fmt.Println("request split is ", requestSplit)
+	//fmt.Println("request split is ", requestSplit)
 
 	switch requestSplit[0] {
 	case "find":
