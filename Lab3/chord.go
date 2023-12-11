@@ -58,25 +58,26 @@ func main() {
 	flag.Parse()
 
 	//validate the parameters
-	// if net.ParseIP(*ipAddressClient) == nil {
-	// 	fmt.Println("Please use a valid IP address for the client")
-	// 	return
-	// }
+	if net.ParseIP(*ipAddressClient) == nil {
+		fmt.Println(*ipAddressClient)
+		fmt.Println("Please use a valid IP address for the client")
+		return
+	}
 
 	// if *portClient < 1024 || *portClient > 65535 {
 	// 	fmt.Println("Please use a number between 1024 and 65535 as a port number for the client")
 	// 	return
 	// }
 
-	// if net.ParseIP(*ipAddressChord) == nil {
-	// 	fmt.Println("Please use a valid IP address for the chord node")
-	// 	return
-	// }
+	if net.ParseIP(*ipAddressChord) == nil && *ipAddressChord != "" {
+		fmt.Println("Please use a valid IP address for the chord node")
+		return
+	}
 
-	// if *portChord < 1024 || *portChord > 65535 {
-	// 	fmt.Println("Please use a number between 1024 and 65535 as a port number for the chord node")
-	// 	return
-	// }
+	if (*portChord < 1024 || *portChord > 65535) && *portChord != -1 {
+		fmt.Println("Please use a number between 1024 and 65535 as a port number for the chord node")
+		return
+	}
 
 	// if *ts < 1 || *ts > 60000 {
 	// 	fmt.Println("Please use a number between 1 and 60000 as a value for ts")
