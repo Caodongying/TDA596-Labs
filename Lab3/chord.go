@@ -156,6 +156,7 @@ func main() {
 	go node.handleThreeCommands()
 
 	// open a TCP socket
+	fmt.Println("Listening")
 	listener, err := net.Listen("tcp", *ipAddressClient+":"+strconv.Itoa(*portClient))
 	if err != nil {
 		fmt.Println("Error when listening to ip:port", err)
@@ -171,7 +172,7 @@ func main() {
 			continue // not sure if it's should be return; when should this loop terminate?
 		}
 
-		go handleConnection(conn, node)
+		go handleConnection(conn, &node)
 	}
 
 }
@@ -313,7 +314,6 @@ func (node *Node) stabilize() {
 
 func (node *Node) notify(currentNode NodeIP) {
 	if node.Predecessor.ID == "" || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) {
-		fmt.Println("predecessor before: " + node.Predecessor.ID)
 		node.Predecessor = currentNode
 	}
 }
@@ -331,7 +331,7 @@ func (node *Node) fixFinger() {
 		node.FingerTable[node.NextFinger] = temp.NodeIP
 	}
 	// } else {
-	// 	fmt.Println("No suceesor found for node", nextNode)
+	// 	fmt.Println("No successor found for node", nextNode)
 	// }
 	node.NextFinger++
 }
@@ -475,7 +475,7 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 	fmt.Println("The new node's successor is ", node.Successors[0])
 }
 
-func handleConnection(conn net.Conn, node Node) {
+func handleConnection(conn net.Conn, node *Node) {
 	defer conn.Close()
 
 	// Read the incoming request
@@ -529,10 +529,9 @@ func handleConnection(conn net.Conn, node Node) {
 	case "notify":
 		id := requestSplit[1]
 		address := requestSplit[2]
-		if id != node.ID { // A node can't be it's own predecessor
-			node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
-			fmt.Println("predecessor after:" + node.Predecessor.ID)
-		}
+		fmt.Println("predecessor before:" + node.Predecessor.ID)
+		node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
+		fmt.Println("predecessor after:" + node.Predecessor.ID)
 		return
 	case "storeFile":
 		fileName := requestSplit[1]
