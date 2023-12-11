@@ -106,7 +106,7 @@ func main() {
 		fmt.Println("Error when listening to ip:port", err)
 		return
 	}
-	defer listener.Close()
+	////defer listener.Close()
 
 	for {
 		// Accept incoming connections
@@ -207,7 +207,7 @@ func (node *Node) storeFile(filePath string) {
 		return
 	}
 
-	defer conn.Close()
+	////defer conn.Close()
 
 	fileData, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -289,8 +289,8 @@ func (node *Node) checkPredecessor() {
 		return
 	}
 
-	conn, err := net.Dial("tcp", string(node.Predecessor.Address))
-	defer conn.Close()
+	_, err := net.Dial("tcp", string(node.Predecessor.Address))
+	//defer conn.Close()
 	if err != nil {
 		node.Predecessor = NodeIP{}
 		fmt.Println("Predecessor has failed", err)
@@ -348,7 +348,7 @@ func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
 		fmt.Println("Error when dialing the node", err)
 		return
 	}
-	defer conn.Close()
+	////defer conn.Close()
 
 	// parameter sent to the ipAddress: id and address
 	// this is to avoid using encoder and creating another ugly structure
@@ -366,10 +366,11 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	// This function returns found or not + the successor (NodeIP)
 	conn, err := net.Dial("tcp", string(ipAddressChord))
 	if err != nil {
-		fmt.Printf("Error when dialing the chord node (%v), %v\n", operation, err.Error())
+		fmt.Printf("Error when dialing the node (%v), %v\n", operation, err.Error())
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
 	}
-	defer conn.Close()
+	//fmt.Printf("Successfully dialing node (%v)\n", operation)
+	//defer conn.Close()
 
 	// write to the connection
 	// operations can be:
@@ -381,15 +382,18 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 		fmt.Println("Error when sending request to the node", writeErr)
 		return NodeFound{} // not sure
 	}
+	//fmt.Printf("Successfully sending request to node (%v)\n", operation)
 
 	// receive the result: found, successor
 	decoder := gob.NewDecoder(conn)
-	receiveNode := NodeFound{}
+	//receiveNode := NodeFound{}
+	var receiveNode NodeFound
 	errDecode := decoder.Decode(&receiveNode) // todo - not sure
 	if errDecode != nil {
 		fmt.Println("Error when receiving successor from the chord node", errDecode)
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
 	}
+	//fmt.Printf("Successfully receiving successor from node (%v)\n", operation)
 
 	return receiveNode
 }
@@ -404,7 +408,7 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 }
 
 func handleConnection(conn net.Conn, node Node) {
-	defer conn.Close()
+	//defer conn.Close()
 
 	// Read the incoming request
 	buf, readErr := ioutil.ReadAll(conn)
