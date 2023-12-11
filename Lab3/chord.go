@@ -362,6 +362,9 @@ func (node *Node) createRing() {
 }
 
 func (node *Node) findSuccessor(id string) NodeFound {
+	if node.ID == node.Successors[0].ID {
+		return NodeFound{Found: true, NodeIP: node.Successors[0]} // If we didn't return here, we would create an infinite loop
+	}
 	if id > node.ID && id <= node.Successors[0].ID {
 		return NodeFound{Found: true, NodeIP: node.Successors[0]}
 	}
@@ -437,12 +440,12 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	}
 	//fmt.Printf("Successfully sending request to node (%v)\n", operation)
 
-	if  cw, ok := conn.(interface{ CloseWrite() error }); ok {
-        cw.CloseWrite()
-    } else {
-        fmt.Errorf("Connection doesn't implement CloseWrite method")
+	if cw, ok := conn.(interface{ CloseWrite() error }); ok {
+		cw.CloseWrite()
+	} else {
+		fmt.Errorf("Connection doesn't implement CloseWrite method")
 		return NodeFound{}
-    }
+	}
 
 	// receive the result: found, successor
 	decoder := gob.NewDecoder(conn)
@@ -483,10 +486,11 @@ func handleConnection(conn net.Conn, node Node) {
 	if requestSplit[0] == "find" {
 		fmt.Println("request split is ", requestSplit)
 	}
-	
+
 	switch requestSplit[0] {
 	case "find":
 		result := node.find(requestSplit[1])
+		fmt.Println(result.NodeIP.Address)
 		// send successor back to the node
 		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
