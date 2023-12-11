@@ -17,7 +17,6 @@ import (
 	"time"
 )
 
-
 type NodeAddress string
 
 type FileName string
@@ -46,19 +45,71 @@ type NodeFound struct {
 
 func main() {
 	// parse the command
-	ipAddressClient := flag.String("a", "127.0.0.1", "chord client's IP address")
-	portClient := flag.Int("p", 8080, "chord client's port number")
+	ipAddressClient := flag.String("a", "", "chord client's IP address")
+	portClient := flag.Int("p", 0, "chord client's port number")
 	ipAddressChord := flag.String("ja", "", "IP address of machine running a chord node") // improve later
 	portChord := flag.Int("jp", -1, "Port number")                                        // improve later
-	ts := flag.Int("ts", 3000, "time in milliseconds between invocations of ‘stabilize’")
-	tff := flag.Int("tff", 1000, "time in milliseconds between invocations of ‘fix fingers’")
-	tcp := flag.Int("tcp", 3000, "time in milliseconds between invocations of ‘check predecessor’")
-	r := flag.Int("r", 4, "number of successors maintained by the Chord client")
+	ts := flag.Int("ts", 0, "time in milliseconds between invocations of ‘stabilize’")
+	tff := flag.Int("tff", 0, "time in milliseconds between invocations of ‘fix fingers’")
+	tcp := flag.Int("tcp", 0, "time in milliseconds between invocations of ‘check predecessor’")
+	r := flag.Int("r", 0, "number of successors maintained by the Chord client")
 	id := flag.String("i", "", "customized chord identifier")
 
 	flag.Parse()
 
-	// TBA - validate the parameters
+	//validate the parameters
+	if net.ParseIP(*ipAddressClient) == nil {
+		fmt.Println("Please use a valid IP address for the client")
+		return
+	}
+
+	if *portClient < 1024 || *portClient > 65535 {
+		fmt.Println("Please use a number between 1024 and 65535 as a port number for the client")
+		return
+	}
+
+	if net.ParseIP(*ipAddressChord) == nil {
+		fmt.Println("Please use a valid IP address for the chord node")
+		return
+	}
+
+	if *portChord < 1024 || *portChord > 65535 {
+		fmt.Println("Please use a number between 1024 and 65535 as a port number for the chord node")
+		return
+	}
+
+	if *ts < 1 || *ts > 60000 {
+		fmt.Println("Please use a number between 1 and 60000 as a value for ts")
+		return
+	}
+
+	if *tff < 1 || *tff > 60000 {
+		fmt.Println("Please use a number between 1 and 60000 as a value for tff")
+		return
+	}
+
+	if *tcp < 1 || *tcp > 60000 {
+		fmt.Println("Please use a number between 1 and 60000 as a value for tcp")
+		return
+	}
+
+	if *tcp < 1 || *tcp > 32 {
+		fmt.Println("Please use a number between 1 and 32 as a value for r")
+		return
+	}
+
+	if *id != "" {
+		if len(*id) != 40 {
+			fmt.Println("Please use an identifier with 40 characters")
+			return
+		}
+		_, err := strconv.ParseUint(*id, 16, 64)
+		if err != nil {
+			fmt.Println("Please use an identifier consisting of hexcode characters")
+			return
+		}
+	}
+
 	// crash if only ipAddressChord or portChord is given in command line
 	if (*ipAddressChord == "" && *portChord == -1) && (*ipAddressChord != "" && *portChord != -1) {
 		fmt.Println("Please use either both -ja and -jp, or neither of them")
@@ -66,7 +117,10 @@ func main() {
 	}
 
 	// make sure that the given chord node is not the same as the client node
-	// todo
+	if *ipAddressChord == *ipAddressClient && *portChord == *portClient {
+		fmt.Println("Please make sure the new node has a different IP address and port number than the existing node")
+		return
+	}
 
 	// Instantiate the node
 	node := Node{
@@ -119,16 +173,6 @@ func main() {
 		go handleConnection(conn, node)
 	}
 
-	// remove these later
-	fmt.Println("ipAddressClient", *ipAddressClient)
-	fmt.Println("portClient", *portClient)
-	fmt.Println("ipAddressChord", *ipAddressChord)
-	fmt.Println("portChord", *portChord)
-	fmt.Println("ts", *ts)
-	fmt.Println("tff", *tff)
-	fmt.Println("tcp", *tcp)
-	fmt.Println("r", *r)
-	fmt.Println("id", *id)
 }
 
 func (node *Node) handleThreeCommands() {
@@ -139,7 +183,6 @@ func (node *Node) handleThreeCommands() {
 			splitScan := strings.Split(scanner.Text(), " ")
 			switch splitScan[0] {
 			case "Lookup":
-				// add: some validation here
 				node.lookUp(splitScan[1])
 			case "StoreFile":
 				node.storeFile(splitScan[1])
@@ -153,7 +196,12 @@ func (node *Node) handleThreeCommands() {
 	}
 }
 
-func (node *Node) lookUp(fileName string) NodeIP{
+func (node *Node) lookUp(fileName string) NodeIP {
+	// 0 - "-" can't be in fileName
+	if strings.ContainsAny(fileName, "-") {
+		fmt.Println("Illegal file name, make sure there is no \"-\"")
+		return NodeIP{}
+	}
 	// 1 - hash the filename
 	key := createIdentifier(fileName)
 	// 2 - find the successor of the file key
@@ -215,7 +263,7 @@ func (node *Node) storeFile(filePath string) {
 		return
 	}
 
-	conn.Write(append([]byte("storeFile-"+fileName+"-"), fileData...)) // todo - no "-" allowed in fileName
+	conn.Write(append([]byte("storeFile-"+fileName+"-"), fileData...))
 }
 
 func (node *Node) setStablizeTimer(ts int) {
@@ -285,7 +333,7 @@ func (node *Node) fixFinger() {
 
 func (node *Node) checkPredecessor() {
 	// check if predecessor is still running
-	if node.Predecessor.ID == "" { // not sure
+	if node.Predecessor.ID == "" {
 		return
 	}
 
@@ -396,7 +444,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 
 func (node *Node) joinRing(ipChord string, portChord int) {
 	// call find
-	temp := makeRequest("find", node.ID, NodeAddress(ipChord + ":" + strconv.Itoa(portChord)))
+	temp := makeRequest("find", node.ID, NodeAddress(ipChord+":"+strconv.Itoa(portChord)))
 	if !temp.Found {
 		return
 	}
@@ -456,10 +504,10 @@ func handleConnection(conn net.Conn, node Node) {
 		address := requestSplit[2]
 		node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
 		return
-	case "storeFile": 
+	case "storeFile":
 		fileName := requestSplit[1]
 		fileContent := requestSplit[2]
-		for i := 3; i < len(requestSplit) ; i++{
+		for i := 3; i < len(requestSplit); i++ {
 			fileContent += "-" + requestSplit[i]
 		}
 		err := os.WriteFile(fileName, []byte(fileContent), 0644)
@@ -490,5 +538,4 @@ func createIdentifier(name string) string {
 	identifier := hex.EncodeToString(h.Sum(nil))
 	fmt.Println("Identifier is ", identifier)
 	return identifier
-}	
-
+}
