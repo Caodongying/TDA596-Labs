@@ -293,6 +293,7 @@ func (node *Node) setCheckPredecessorTimer(tcp int) {
 }
 
 func (node *Node) stabilize() {
+	fmt.Println("predecessor is: " + node.Predecessor.ID)
 	if node.Successors[0].Address == "" {
 		return
 	}
@@ -304,7 +305,7 @@ func (node *Node) stabilize() {
 		return
 	}
 	// predecessor exists
-	if temp.NodeIP.ID > node.ID && temp.NodeIP.ID < node.Successors[0].ID {
+	if (temp.NodeIP.ID > node.ID && temp.NodeIP.ID < node.Successors[0].ID) || node.ID == node.Successors[0].ID {
 		fmt.Println("Predecessor exists. Update successor to ", temp.NodeIP)
 		node.Successors[0] = temp.NodeIP
 	}
@@ -312,8 +313,8 @@ func (node *Node) stabilize() {
 	makeNotifyRequest(NodeIP{ID: node.ID, Address: node.Address}, node.Successors[0].Address)
 }
 
-func (node *Node) notify(currentNode NodeIP) {
-	if node.Predecessor.ID == "" || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) {
+func (node *Node) notify(currentNode NodeIP) { //chord has to be a ring!
+	if node.Predecessor.ID == "" || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) || (currentNode.ID < node.Predecessor.ID && currentNode.ID > node.ID) {
 		node.Predecessor = currentNode
 	}
 }
@@ -322,11 +323,14 @@ func (node *Node) fixFinger() {
 	if node.NextFinger >= 160 {
 		node.NextFinger = 0
 	}
-
-	nextNode, _ := strconv.Atoi("0x" + node.ID)
-	nextNode += int(math.Pow(2, float64(node.NextFinger)))
-	nextNode %= int(math.Pow(2, 160))
-	temp := node.find(strconv.Itoa(nextNode))
+	nextNode, _ := strconv.ParseUint(node.ID, 16, 64)
+	fmt.Println(nextNode)
+	nextNode += uint64(math.Pow(2, float64(node.NextFinger))) //doesn't work!!!
+	fmt.Println(nextNode)
+	nextNode %= uint64(math.Pow(2, 160))
+	fmt.Println(nextNode)
+	fmt.Println("-----------")
+	temp := node.find(strconv.FormatUint(nextNode, 16))
 	if temp.Found {
 		node.FingerTable[node.NextFinger] = temp.NodeIP
 	}
@@ -529,9 +533,11 @@ func handleConnection(conn net.Conn, node *Node) {
 	case "notify":
 		id := requestSplit[1]
 		address := requestSplit[2]
-		fmt.Println("predecessor before:" + node.Predecessor.ID)
-		node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
-		fmt.Println("predecessor after:" + node.Predecessor.ID)
+		if id != node.ID { // A node can't be it's own predecessor
+			fmt.Println("predecessor before:" + node.Predecessor.ID)
+			node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
+			fmt.Println("predecessor after:" + node.Predecessor.ID)
+		}
 		return
 	case "storeFile":
 		fileName := requestSplit[1]
