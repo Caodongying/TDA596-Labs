@@ -303,6 +303,7 @@ func (node *Node) stablize() {
 	}
 	// predecessor exsits
 	if temp.NodeIP.ID > node.ID && temp.NodeIP.ID < node.Successors[0].ID {
+		fmt.Println("Predecessor exsits. Update successor to ", temp.NodeIP)
 		node.Successors[0] = temp.NodeIP
 	}
 	// send notify to successor[0]
@@ -465,9 +466,11 @@ func (node *Node) joinRing(ipChord string, portChord int) {
 	// call find
 	temp := makeRequest("find", node.ID, NodeAddress(ipChord+":"+strconv.Itoa(portChord)))
 	if !temp.Found {
+		fmt.Println("Join ring fails! Cannot find the successor of the new node!")
 		return
 	}
 	node.Successors[0] = temp.NodeIP
+	fmt.Println("The new node's successor is ", node.Successors[0])
 }
 
 func handleConnection(conn net.Conn, node Node) {
