@@ -64,10 +64,10 @@ func main() {
 		return
 	}
 
-	// if *portClient < 1024 || *portClient > 65535 {
-	// 	fmt.Println("Please use a number between 1024 and 65535 as a port number for the client")
-	// 	return
-	// }
+	if *portClient < 1024 || *portClient > 65535 {
+		fmt.Println("Please use a number between 1024 and 65535 as a port number for the client")
+		return
+	}
 
 	if net.ParseIP(*ipAddressChord) == nil && *ipAddressChord != "" {
 		fmt.Println("Please use a valid IP address for the chord node")
@@ -79,49 +79,49 @@ func main() {
 		return
 	}
 
-	// if *ts < 1 || *ts > 60000 {
-	// 	fmt.Println("Please use a number between 1 and 60000 as a value for ts")
-	// 	return
-	// }
+	if *ts < 1 || *ts > 60000 {
+		fmt.Println("Please use a number between 1 and 60000 as a value for ts")
+		return
+	}
 
-	// if *tff < 1 || *tff > 60000 {
-	// 	fmt.Println("Please use a number between 1 and 60000 as a value for tff")
-	// 	return
-	// }
+	if *tff < 1 || *tff > 60000 {
+		fmt.Println("Please use a number between 1 and 60000 as a value for tff")
+		return
+	}
 
-	// if *tcp < 1 || *tcp > 60000 {
-	// 	fmt.Println("Please use a number between 1 and 60000 as a value for tcp")
-	// 	return
-	// }
+	if *tcp < 1 || *tcp > 60000 {
+		fmt.Println("Please use a number between 1 and 60000 as a value for tcp")
+		return
+	}
 
-	// if *tcp < 1 || *tcp > 32 {
-	// 	fmt.Println("Please use a number between 1 and 32 as a value for r")
-	// 	return
-	// }
+	if *r < 1 || *r > 32 {
+		fmt.Println("Please use a number between 1 and 32 as a value for r")
+		return
+	}
 
-	// if *id != "" {
-	// 	if len(*id) != 40 {
-	// 		fmt.Println("Please use an identifier with 40 characters")
-	// 		return
-	// 	}
-	// 	_, err := strconv.ParseUint(*id, 16, 64)
-	// 	if err != nil {
-	// 		fmt.Println("Please use an identifier consisting of hexcode characters")
-	// 		return
-	// 	}
-	// }
+	if *id != "" {
+		if len(*id) != 40 {
+			fmt.Println("Please use an identifier with 40 characters")
+			return
+		}
+		_, err := strconv.ParseUint(*id, 16, 64)
+		if err != nil {
+			fmt.Println("Please use an identifier consisting of hexcode characters")
+			return
+		}
+	}
 
 	// // crash if only ipAddressChord or portChord is given in command line
-	// if (*ipAddressChord == "" && *portChord == -1) && (*ipAddressChord != "" && *portChord != -1) {
-	// 	fmt.Println("Please use either both -ja and -jp, or neither of them")
-	// 	return
-	// }
+	if (*ipAddressChord == "" && *portChord == -1) && (*ipAddressChord != "" && *portChord != -1) {
+		fmt.Println("Please use either both -ja and -jp, or neither of them")
+		return
+	}
 
 	// // make sure that the given chord node is not the same as the client node
-	// if *ipAddressChord == *ipAddressClient && *portChord == *portClient {
-	// 	fmt.Println("Please make sure the new node has a different IP address and port number than the existing node")
-	// 	return
-	// }
+	if *ipAddressChord == *ipAddressClient && *portChord == *portClient {
+		fmt.Println("Please make sure the new node has a different IP address and port number than the existing node")
+		return
+	}
 
 	// Instantiate the node
 	node := Node{
