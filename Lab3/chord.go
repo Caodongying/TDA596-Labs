@@ -59,6 +59,7 @@ func main() {
 
 	//validate the parameters
 	if net.ParseIP(*ipAddressClient) == nil {
+		fmt.Println(*ipAddressClient)
 		fmt.Println("Please use a valid IP address for the client")
 		return
 	}
@@ -68,12 +69,12 @@ func main() {
 		return
 	}
 
-	if net.ParseIP(*ipAddressChord) == nil {
+	if net.ParseIP(*ipAddressChord) == nil && *ipAddressChord != "" {
 		fmt.Println("Please use a valid IP address for the chord node")
 		return
 	}
 
-	if *portChord < 1024 || *portChord > 65535 {
+	if (*portChord < 1024 || *portChord > 65535) && *portChord != -1 {
 		fmt.Println("Please use a number between 1024 and 65535 as a port number for the chord node")
 		return
 	}
@@ -367,7 +368,7 @@ func (node *Node) findSuccessor(id string) NodeFound {
 }
 
 func (node *Node) closestPrecedingNode(id string) NodeIP {
-	for i := 160; i > 0; i-- {
+	for i := 159; i >= 0; i-- {
 		if node.FingerTable[i].ID > node.ID && node.FingerTable[i].ID <= id {
 			return node.FingerTable[i]
 		}
