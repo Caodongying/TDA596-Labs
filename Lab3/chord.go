@@ -148,7 +148,7 @@ func main() {
 	}
 
 	// Create a goroutine to start the three timers
-	go node.setStablizeTimer(*ts)
+	go node.setStabilizeTimer(*ts)
 	go node.setFixFingerTimer(*tff)
 	go node.setCheckPredecessorTimer(*tcp)
 
@@ -267,31 +267,31 @@ func (node *Node) storeFile(filePath string) {
 	conn.Write(append([]byte("storeFile-"+fileName+"-"), fileData...))
 }
 
-func (node *Node) setStablizeTimer(ts int) {
+func (node *Node) setStabilizeTimer(ts int) {
 	for {
-		timerStablize := time.NewTimer(time.Duration(ts) * time.Millisecond)
-		<-timerStablize.C
-		go node.stablize()
+		timerStabilize := time.NewTimer(time.Duration(ts) * time.Millisecond)
+		<-timerStabilize.C
+		node.stabilize()
 	}
 }
 
 func (node *Node) setFixFingerTimer(tff int) {
 	for {
-		timerStablize := time.NewTimer(time.Duration(tff) * time.Millisecond)
-		<-timerStablize.C
-		go node.fixFinger()
+		timerFixFinger := time.NewTimer(time.Duration(tff) * time.Millisecond)
+		<-timerFixFinger.C
+		node.fixFinger()
 	}
 }
 
 func (node *Node) setCheckPredecessorTimer(tcp int) {
 	for {
-		timerStablize := time.NewTimer(time.Duration(tcp) * time.Millisecond)
-		<-timerStablize.C
-		go node.checkPredecessor()
+		timerCheckPredecessor := time.NewTimer(time.Duration(tcp) * time.Millisecond)
+		<-timerCheckPredecessor.C
+		node.checkPredecessor()
 	}
 }
 
-func (node *Node) stablize() {
+func (node *Node) stabilize() {
 	if node.Successors[0].Address == "" {
 		return
 	}
@@ -299,11 +299,12 @@ func (node *Node) stablize() {
 	temp := makeRequest("findPredecessor", "", node.Successors[0].Address)
 	if !temp.Found {
 		// no predecessor found
+		makeNotifyRequest(NodeIP{ID: node.ID, Address: node.Address}, node.Successors[0].Address)
 		return
 	}
-	// predecessor exsits
+	// predecessor exits
 	if temp.NodeIP.ID > node.ID && temp.NodeIP.ID < node.Successors[0].ID {
-		fmt.Println("Predecessor exsits. Update successor to ", temp.NodeIP)
+		fmt.Println("Predecessor exits. Update successor to ", temp.NodeIP)
 		node.Successors[0] = temp.NodeIP
 	}
 	// send notify to successor[0]
@@ -312,7 +313,10 @@ func (node *Node) stablize() {
 
 func (node *Node) notify(currentNode NodeIP) {
 	if node.Predecessor.ID == "" || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) {
+		fmt.Println("predecessor: " + node.Predecessor.ID)
+		fmt.Println("current: " + currentNode.ID)
 		node.Predecessor = currentNode
+		fmt.Println("predecessor: " + node.Predecessor.ID)
 	}
 }
 
