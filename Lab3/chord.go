@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha1"
 	"encoding/gob"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -49,9 +50,9 @@ func main() {
 	portClient := flag.Int("p", 8080, "chord client's port number")
 	ipAddressChord := flag.String("ja", "", "IP address of machine running a chord node") // improve later
 	portChord := flag.Int("jp", -1, "Port number")                                        // improve later
-	ts := flag.Int("ts", 30000, "time in milliseconds between invocations of ‘stabilize’")
-	tff := flag.Int("tff", 10000, "time in milliseconds between invocations of ‘fix fingers’")
-	tcp := flag.Int("tcp", 30000, "time in milliseconds between invocations of ‘check predecessor’")
+	ts := flag.Int("ts", 3000, "time in milliseconds between invocations of ‘stabilize’")
+	tff := flag.Int("tff", 1000, "time in milliseconds between invocations of ‘fix fingers’")
+	tcp := flag.Int("tcp", 3000, "time in milliseconds between invocations of ‘check predecessor’")
 	r := flag.Int("r", 4, "number of successors maintained by the Chord client")
 	id := flag.String("i", "", "customized chord identifier")
 
@@ -84,18 +85,18 @@ func main() {
 	// IMPROVE HERE
 	if *ipAddressChord == "" && *portChord == -1 {
 		// starts a new ring
-		node.createRing()
+		go node.createRing()
 	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
-		node.joinRing(*ipAddressChord, *portChord)
+		go node.joinRing(*ipAddressChord, *portChord)
 	}
 
-	// Create a goroutin to start the three timers
+	// Create a goroutine to start the three timers
 	go node.setStablizeTimer(*ts)
 	go node.setFixFingerTimer(*tff)
 	go node.setCheckPredecessorTimer(*tcp)
 
-	// Create a goroutin to handle stdin command
+	// Create a goroutine to handle stdin command
 	go node.handleThreeCommands()
 
 	// open a TCP socket
@@ -167,7 +168,7 @@ func (node *Node) lookUp(fileName string) NodeIP{
 }
 
 func (node *Node) printState() {
-	fmt.Printf("Chord Client's node information:\n %x  %v", node.ID, node.Address)
+	fmt.Printf("Chord Client's node information:\n %x  %v\n", node.ID, node.Address)
 	fmt.Println("Successor Nodes:")
 	for _, successor := range node.Successors {
 		fmt.Printf("successor %x  %v\n", successor.ID, successor.Address)
@@ -241,6 +242,9 @@ func (node *Node) setCheckPredecessorTimer(tcp int) {
 }
 
 func (node *Node) stablize() {
+	if node.Successors[0].Address == "" {
+		return
+	}
 	// temp contains predecessor / empty NodeIP{}
 	temp := makeRequest("findPredecessor", "", node.Successors[0].Address)
 	if !temp.Found {
@@ -280,6 +284,10 @@ func (node *Node) fixFinger() {
 
 func (node *Node) checkPredecessor() {
 	// check if predecessor is still running
+	if node.Predecessor.ID == "" { // not sure
+		return
+	}
+
 	conn, err := net.Dial("tcp", string(node.Predecessor.Address))
 	defer conn.Close()
 	if err != nil {
@@ -336,7 +344,7 @@ func (node *Node) find(id string) NodeFound {
 func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
 	conn, err := net.Dial("tcp", string(ipAddress))
 	if err != nil {
-		fmt.Println("Error when dialing the chord node", err)
+		fmt.Println("Error when dialing the node", err)
 		return
 	}
 	defer conn.Close()
@@ -345,7 +353,7 @@ func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
 	// this is to avoid using encoder and creating another ugly structure
 	_, writeErr := conn.Write([]byte("notify" + "-" + nodeIP.ID + "-" + string(nodeIP.Address)))
 	if writeErr != nil {
-		fmt.Println("Error when sending request to the chord node", writeErr)
+		fmt.Println("Error when sending notify request to the node", writeErr)
 		return
 	}
 }
@@ -357,7 +365,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	// This function returns found or not + the successor (NodeIP)
 	conn, err := net.Dial("tcp", string(ipAddressChord))
 	if err != nil {
-		fmt.Println("Error when dialing the chord node", err)
+		fmt.Printf("Error when dialing the chord node (%v), %v\n", operation, err.Error())
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
 	}
 	defer conn.Close()
@@ -369,14 +377,14 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	// (3) findPredecessor ---> findPredecessor-
 	_, writeErr := conn.Write([]byte(operation + "-" + nodeID))
 	if writeErr != nil {
-		fmt.Println("Error when sending request to the chord node", writeErr)
+		fmt.Println("Error when sending request to the node", writeErr)
 		return NodeFound{} // not sure
 	}
 
 	// receive the result: found, successor
 	decoder := gob.NewDecoder(conn)
 	receiveNode := NodeFound{}
-	errDecode := decoder.Decode(receiveNode) // todo - not sure
+	errDecode := decoder.Decode(&receiveNode) // todo - not sure
 	if errDecode != nil {
 		fmt.Println("Error when receiving successor from the chord node", errDecode)
 		return NodeFound{Found: false, NodeIP: NodeIP{}}
@@ -387,7 +395,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 
 func (node *Node) joinRing(ipChord string, portChord int) {
 	// call find
-	temp := makeRequest("find", node.ID, NodeAddress(ipChord+":"+strconv.Itoa(portChord)))
+	temp := makeRequest("find", node.ID, NodeAddress(ipChord + ":" + strconv.Itoa(portChord)))
 	if !temp.Found {
 		return
 	}
@@ -403,7 +411,7 @@ func handleConnection(conn net.Conn, node Node) {
 		fmt.Println("Error when reading request from other node", readErr)
 		return
 	}
-	request := string(buf)
+	request := string(buf[:])
 
 	requestSplit := strings.Split(request, "-")
 	switch requestSplit[0] {
@@ -413,7 +421,7 @@ func handleConnection(conn net.Conn, node Node) {
 		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
 		if errEncode != nil {
-			fmt.Println("Error when sending request to the chord node", errEncode)
+			fmt.Println("Error when sending find request to the node", errEncode)
 			return
 		}
 	case "findSuccessor":
@@ -422,7 +430,7 @@ func handleConnection(conn net.Conn, node Node) {
 		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
 		if errEncode != nil {
-			fmt.Println("Error when sending request to the chord node", errEncode)
+			fmt.Println("Error when sending findSuccessor request to the node", errEncode)
 			return
 		}
 	case "findPredecessor":
@@ -436,7 +444,7 @@ func handleConnection(conn net.Conn, node Node) {
 		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
 		if errEncode != nil {
-			fmt.Println("Error when sending request to the chord node", errEncode)
+			fmt.Println("Error when sending findPredecessor request to the chord node", errEncode)
 			return
 		}
 	case "notify":
@@ -463,13 +471,20 @@ func handleConnection(conn net.Conn, node Node) {
 func createIdentifier(name string) string {
 	// name is ip:port
 	// generate a 40-character hash key for the name
+
+	// h := sha1.New()
+	// io.WriteString(h, string(name))
+	// temp := string(h.Sum(nil))
+	// tempArr := strings.Split(temp, " ")
+	// result := ""
+	// for _, value := range tempArr {
+	// 	result += fmt.Sprintf("%s", value)
+	// }
+	// return result
 	h := sha1.New()
-	io.WriteString(h, string(name))
-	temp := string(h.Sum(nil))
-	tempArr := strings.Split(temp, " ")
-	result := ""
-	for _, value := range tempArr {
-		result += fmt.Sprintf("%s", value)
-	}
-	return result
-}
+	io.WriteString(h, name)
+	identifier := hex.EncodeToString(h.Sum(nil))
+	fmt.Println("Identifier is ", identifier)
+	return identifier
+}	
+
