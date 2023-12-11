@@ -94,7 +94,7 @@ func main() {
 		return
 	}
 
-	if *tcp < 1 || *tcp > 32 {
+	if *r < 1 || *r > 32 {
 		fmt.Println("Please use a number between 1 and 32 as a value for r")
 		return
 	}
