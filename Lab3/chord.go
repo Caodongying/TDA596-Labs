@@ -325,22 +325,16 @@ func (node *Node) fixFinger() {
 	}
 	nextNode, _ := strconv.ParseInt(node.ID, 16, 64)
 	nextNodeNumber := big.NewInt(nextNode)
-	fmt.Println(nextNodeNumber)
-	//power := big.NewInt(int64(math.Pow(2, float64(node.NextFinger))))
 	nextNodeNumber.Add(nextNodeNumber, new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(node.NextFinger)), nil))
-	fmt.Println(nextNodeNumber)
-	//bigPower := big.NewInt(int64(math.Pow(2, 160)))
 	nextNodeNumber.Mod(nextNodeNumber, new(big.Int).Exp(big.NewInt(2), big.NewInt(160), nil))
-	fmt.Println(nextNodeNumber)
-	fmt.Println("-----------")
+
 	nextNodeID := hex.EncodeToString([]byte(nextNodeNumber.String()))
 	temp := node.find(nextNodeID)
+
 	if temp.Found {
 		node.FingerTable[node.NextFinger] = temp.NodeIP
 	}
-	// } else {
-	// 	fmt.Println("No successor found for node", nextNode)
-	// }
+
 	node.NextFinger++
 }
 
