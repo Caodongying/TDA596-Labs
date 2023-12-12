@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math"
+	"math/big"
 	"net"
 	"os"
 	"strconv"
@@ -323,14 +323,18 @@ func (node *Node) fixFinger() {
 	if node.NextFinger >= 160 {
 		node.NextFinger = 0
 	}
-	nextNode, _ := strconv.ParseUint(node.ID, 16, 64)
-	fmt.Println(nextNode)
-	nextNode += uint64(math.Pow(2, float64(node.NextFinger))) //doesn't work!!!
-	fmt.Println(nextNode)
-	nextNode %= uint64(math.Pow(2, 160))
-	fmt.Println(nextNode)
+	nextNode, _ := strconv.ParseInt(node.ID, 16, 64)
+	nextNodeNumber := big.NewInt(nextNode)
+	fmt.Println(nextNodeNumber)
+	//power := big.NewInt(int64(math.Pow(2, float64(node.NextFinger))))
+	nextNodeNumber.Add(nextNodeNumber, new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(node.NextFinger)), nil))
+	fmt.Println(nextNodeNumber)
+	//bigPower := big.NewInt(int64(math.Pow(2, 160)))
+	nextNodeNumber.Mod(nextNodeNumber, new(big.Int).Exp(big.NewInt(2), big.NewInt(160), nil))
+	fmt.Println(nextNodeNumber)
 	fmt.Println("-----------")
-	temp := node.find(strconv.FormatUint(nextNode, 16))
+	nextNodeID := hex.EncodeToString([]byte(nextNodeNumber.String()))
+	temp := node.find(nextNodeID)
 	if temp.Found {
 		node.FingerTable[node.NextFinger] = temp.NodeIP
 	}
