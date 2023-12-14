@@ -38,9 +38,9 @@ type NodeIP struct {
 	Address NodeAddress
 }
 
-type NodeFound struct {
-	Found  bool
-	NodeIP NodeIP
+type NodesFound struct {
+	Found   bool
+	NodesIP []NodeIP
 }
 
 func main() {
@@ -140,11 +140,14 @@ func main() {
 	// IMPROVE HERE
 	if *ipAddressChord == "" && *portChord == -1 {
 		// starts a new ring
-		go node.createRing()
+		node.createRing()
 	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
 		fmt.Println("start to join the ring")
-		go node.joinRing(*ipAddressChord, *portChord)
+		success := node.joinRing(*ipAddressChord, *portChord)
+		if !success {
+			return
+		}
 	}
 
 	// Create a goroutine to start the three timers
@@ -214,8 +217,8 @@ func (node *Node) lookUp(fileName string) NodeIP {
 	}
 	// 3 - print out the node information
 	//     id, ip, port
-	fmt.Printf("Node Information: \n  %v  %v", temp.NodeIP.ID, temp.NodeIP.Address)
-	return temp.NodeIP
+	fmt.Printf("Node Information: \n  %v  %v", temp.NodesIP[0].ID, temp.NodesIP[0].Address)
+	return temp.NodesIP[0]
 }
 
 func (node *Node) printState() {
@@ -224,6 +227,7 @@ func (node *Node) printState() {
 	for _, successor := range node.Successors {
 		fmt.Printf("successor %v  %v\n", successor.ID, successor.Address)
 	}
+	fmt.Println("Fingers:")
 	for _, finger := range node.FingerTable {
 		fmt.Printf("finger %v  %v\n", finger.ID, finger.Address)
 	}
@@ -299,15 +303,19 @@ func (node *Node) stabilize() {
 	}
 	// temp contains predecessor / empty NodeIP{}
 	temp := makeRequest("findPredecessor", "", node.Successors[0].Address)
-	if !temp.Found {
-		// no predecessor found
-		makeNotifyRequest(NodeIP{ID: node.ID, Address: node.Address}, node.Successors[0].Address)
-		return
+	if temp.Found {
+		// predecessor exists
+		if (temp.NodesIP[0].ID > node.ID && temp.NodesIP[0].ID < node.Successors[0].ID) || node.ID == node.Successors[0].ID {
+			fmt.Println("Predecessor exists. Update successors to ", temp.NodesIP)
+			node.Successors = temp.NodesIP
+		}
 	}
-	// predecessor exists
-	if (temp.NodeIP.ID > node.ID && temp.NodeIP.ID < node.Successors[0].ID) || node.ID == node.Successors[0].ID {
-		fmt.Println("Predecessor exists. Update successor to ", temp.NodeIP)
-		node.Successors[0] = temp.NodeIP
+	// update other successors
+	temp = makeRequest("findOtherSuccessors", "", node.Successors[0].Address)
+	if temp.Found {
+		for i := 1; i < len(node.Successors); i++ {
+			node.Successors[i] = temp.NodesIP[i-1]
+		}
 	}
 	// send notify to successor[0]
 	makeNotifyRequest(NodeIP{ID: node.ID, Address: node.Address}, node.Successors[0].Address)
@@ -332,7 +340,7 @@ func (node *Node) fixFinger() {
 	temp := node.find(nextNodeID)
 
 	if temp.Found {
-		node.FingerTable[node.NextFinger] = temp.NodeIP
+		node.FingerTable[node.NextFinger] = temp.NodesIP[0]
 	}
 
 	node.NextFinger++
@@ -356,7 +364,9 @@ func (node *Node) checkPredecessor() {
 
 func (node *Node) createRing() {
 	// initialize the successor list and finger table
-	node.Successors[0] = NodeIP{ID: node.ID, Address: node.Address}
+	for i := range node.Successors {
+		node.Successors[i] = NodeIP{ID: node.ID, Address: node.Address}
+	}
 
 	for index := range node.FingerTable {
 		node.FingerTable[index] = NodeIP{
@@ -366,14 +376,14 @@ func (node *Node) createRing() {
 	}
 }
 
-func (node *Node) findSuccessor(id string) NodeFound {
+func (node *Node) findSuccessor(id string) NodesFound {
 	if node.ID == node.Successors[0].ID {
-		return NodeFound{Found: true, NodeIP: node.Successors[0]} // If we didn't return here, we would create an infinite loop
+		return NodesFound{Found: true, NodesIP: []NodeIP{node.Successors[0]}} // If we didn't return here, we would create an infinite loop
 	}
 	if id > node.ID && id <= node.Successors[0].ID {
-		return NodeFound{Found: true, NodeIP: node.Successors[0]}
+		return NodesFound{Found: true, NodesIP: []NodeIP{node.Successors[0]}}
 	}
-	return NodeFound{Found: false, NodeIP: node.closestPrecedingNode(id)}
+	return NodesFound{Found: false, NodesIP: []NodeIP{node.closestPrecedingNode(id)}}
 }
 
 func (node *Node) closestPrecedingNode(id string) NodeIP {
@@ -382,10 +392,15 @@ func (node *Node) closestPrecedingNode(id string) NodeIP {
 			return node.FingerTable[i]
 		}
 	}
+	fmt.Println(node.Successors[0].ID)
 	return node.Successors[0]
 }
 
-func (node *Node) find(id string) NodeFound {
+// TODO: figure out if this should return 1 successor or all successors
+// 		+: cleaner code, easy way to check length of successor list
+//		-: we don't follow the paper anymore, 99% of the time too complicated
+
+func (node *Node) find(id string) NodesFound {
 	nextNode := NodeIP{ID: node.ID, Address: node.Address}
 	found := false
 	for i := 0; i < 160 && !found; i++ {
@@ -394,13 +409,13 @@ func (node *Node) find(id string) NodeFound {
 		}
 		temp := makeRequest("findSuccessor", id, nextNode.Address) // execute findSuccessor
 		found = temp.Found
-		nextNode = temp.NodeIP
+		nextNode = temp.NodesIP[0]
 	}
 	if found {
-		return NodeFound{Found: true, NodeIP: nextNode}
+		return NodesFound{Found: true, NodesIP: []NodeIP{nextNode}}
 	}
 	//fmt.Println("Successor not found!")
-	return NodeFound{Found: false, NodeIP: NodeIP{}}
+	return NodesFound{}
 }
 
 func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
@@ -420,7 +435,7 @@ func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
 	}
 }
 
-func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) NodeFound {
+func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) NodesFound {
 	// nodeID: for finding successor, the node that wants to join the ring;
 	//		   otherwise, for finding predecessor, nodeID will be empty
 	// ipAddressChord: the node that is already on the ring. We want to communicate to this ring and join the ring via this node
@@ -428,7 +443,7 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	conn, err := net.Dial("tcp", string(ipAddressChord))
 	if err != nil {
 		fmt.Printf("Error when dialing the node (%v), %v\n", operation, err.Error())
-		return NodeFound{Found: false, NodeIP: NodeIP{}}
+		return NodesFound{}
 	}
 	//fmt.Printf("Successfully dialing node (%v)\n", operation)
 	defer conn.Close()
@@ -438,10 +453,11 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 	// (1) find ---> find-nodeID
 	// (2) findSuccessor ---> findSuccessor-nodeID
 	// (3) findPredecessor ---> findPredecessor-
+	// TODO: write other operations here!
 	_, writeErr := conn.Write([]byte(operation + "-" + nodeID))
 	if writeErr != nil {
 		fmt.Println("Error when sending request to the node", writeErr)
-		return NodeFound{} // not sure
+		return NodesFound{}
 	}
 	//fmt.Printf("Successfully sending request to node (%v)\n", operation)
 
@@ -449,32 +465,41 @@ func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) No
 		cw.CloseWrite()
 	} else {
 		fmt.Errorf("Connection doesn't implement CloseWrite method")
-		return NodeFound{}
+		return NodesFound{}
 	}
 
 	// receive the result: found, successor
 	decoder := gob.NewDecoder(conn)
-	//receiveNode := NodeFound{}
-	var receiveNode NodeFound
-	errDecode := decoder.Decode(&receiveNode) // todo - not sure
+	//receiveNode := NodesFound{}
+	var receiveNode NodesFound
+	errDecode := decoder.Decode(&receiveNode)
 	if errDecode != nil {
 		fmt.Println("Error when receiving successor from the chord node", errDecode)
-		return NodeFound{Found: false, NodeIP: NodeIP{}}
+		return NodesFound{}
 	}
 	//fmt.Printf("Successfully receiving successor from node (%v)\n", operation)
 
 	return receiveNode
 }
 
-func (node *Node) joinRing(ipChord string, portChord int) {
+func (node *Node) joinRing(ipChord string, portChord int) bool {
 	// call find
 	temp := makeRequest("find", node.ID, NodeAddress(ipChord+":"+strconv.Itoa(portChord)))
 	if !temp.Found {
 		fmt.Println("Join ring fails! Cannot find the successor of the new node!")
-		return
+		return false
 	}
-	node.Successors[0] = temp.NodeIP
+	// all successor lists need to have the same length, TAs confirmed this
+	// TODO: find way to check this
+
+	//if len(temp.NodesIP) != len(node.Successors) {
+	//	fmt.Println("Join ring fails! Please try again with a value of " + strconv.Itoa(len(temp.NodesIP)) + " for r")
+	//	return false
+	//}
+
+	node.Successors = temp.NodesIP
 	fmt.Println("The new node's successor is ", node.Successors[0])
+	return true
 }
 
 func handleConnection(conn net.Conn, node *Node) {
@@ -497,7 +522,7 @@ func handleConnection(conn net.Conn, node *Node) {
 	switch requestSplit[0] {
 	case "find":
 		result := node.find(requestSplit[1])
-		fmt.Println(result.NodeIP.Address)
+		fmt.Println(result.NodesIP[0].Address)
 		// send successor back to the node
 		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
@@ -516,16 +541,25 @@ func handleConnection(conn net.Conn, node *Node) {
 		}
 	case "findPredecessor":
 		predecessor := node.Predecessor
-		result := NodeFound{}
+		result := NodesFound{}
 		if predecessor.ID != "" {
 			result.Found = true
-			result.NodeIP = predecessor
+			result.NodesIP[0] = predecessor
 		}
 		// send predecessor back to the node
 		encoder := gob.NewEncoder(conn)
 		errEncode := encoder.Encode(result)
 		if errEncode != nil {
 			fmt.Println("Error when sending findPredecessor request to the chord node", errEncode)
+			return
+		}
+	case "findOtherSuccessors":
+		result := NodesFound{Found: true, NodesIP: node.Successors}
+		// send successors back to the node
+		encoder := gob.NewEncoder(conn)
+		errEncode := encoder.Encode(result)
+		if errEncode != nil {
+			fmt.Println("Error when sending findOtherSuccessors request to the chord node", errEncode)
 			return
 		}
 	case "notify":
