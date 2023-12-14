@@ -3,14 +3,16 @@ package main
 import (
 	"bufio"
 	"crypto/sha1"
-	"encoding/gob"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"net"
+	"net/http"
+	"net/rpc"
 	"os"
 	"strconv"
 	"strings"
@@ -23,7 +25,7 @@ type FileName string
 
 type Node struct {
 	ID          string
-	Address     NodeAddress
+	Address     string
 	FingerTable [160]NodeIP
 	NextFinger  int
 	Predecessor NodeIP
@@ -35,7 +37,7 @@ type Node struct {
 // Get the IP address via node id
 type NodeIP struct {
 	ID      string
-	Address NodeAddress
+	Address string
 }
 
 type NodeFound struct {
@@ -125,7 +127,7 @@ func main() {
 
 	// Instantiate the node
 	node := Node{
-		Address:    NodeAddress(*ipAddressClient + ":" + strconv.Itoa(*portClient)),
+		Address:    *ipAddressClient + ":" + strconv.Itoa(*portClient),
 		Successors: make([]NodeIP, *r),
 	}
 
@@ -140,6 +142,7 @@ func main() {
 	// IMPROVE HERE
 	if *ipAddressChord == "" && *portChord == -1 {
 		// starts a new ring
+		fmt.Println("start to create the ring")
 		go node.createRing()
 	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
@@ -157,24 +160,15 @@ func main() {
 
 	// open a TCP socket
 	fmt.Println("Listening")
-	listener, err := net.Listen("tcp", *ipAddressClient+":"+strconv.Itoa(*portClient))
+
+	rpc.Register(&node) // not sure
+	rpc.HandleHTTP()
+	listener, err := net.Listen("tcp", *ipAddressClient + ":" + strconv.Itoa(*portClient))
 	if err != nil {
-		fmt.Println("Error when listening to ip:port", err)
+		log.Fatal("Listener error: ", err)
 		return
 	}
-	defer listener.Close()
-
-	for {
-		// Accept incoming connections
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("Error when accepting connections", err)
-			continue // not sure if it's should be return; when should this loop terminate?
-		}
-
-		go handleConnection(conn, &node)
-	}
-
+	http.Serve(listener, nil) // todo: not sure if go is required
 }
 
 func (node *Node) handleThreeCommands() {
@@ -207,15 +201,24 @@ func (node *Node) lookUp(fileName string) NodeIP {
 	// 1 - hash the filename
 	key := createIdentifier(fileName)
 	// 2 - find the successor of the file key
-	temp := node.find(key)
-	if !temp.Found {
+	args := Args{}
+	reply := Reply{}
+	args.AddressDial = node.Address
+	args.IDToFind = key
+	ok := node.call("Node.RPCFind", &args, &reply)
+	if !ok {
+		fmt.Println("Error happens when calling RPCFind in lookup!")
+		return NodeIP{}
+	}
+
+	if !reply.Found {
 		fmt.Println("File location is not found!")
 		return NodeIP{}
 	}
 	// 3 - print out the node information
 	//     id, ip, port
-	fmt.Printf("Node Information: \n  %v  %v", temp.NodeIP.ID, temp.NodeIP.Address)
-	return temp.NodeIP
+	fmt.Printf("Node Information: \n  %v  %v", reply.FoundNodeIP.ID, reply.FoundNodeIP.Address)
+	return reply.FoundNodeIP
 }
 
 func (node *Node) printState() {
@@ -251,21 +254,23 @@ func (node *Node) storeFile(filePath string) {
 		return
 	}
 
-	conn, err := net.Dial("tcp", string(destination.Address))
-	if err != nil {
-		fmt.Println("Error when dialing the destination")
-		return
-	}
-
-	defer conn.Close()
-
 	fileData, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		fmt.Println("Error when opening the file!")
 		return
 	}
 
-	conn.Write(append([]byte("storeFile-"+fileName+"-"), fileData...))
+	args := Args{}
+	reply := Reply{}
+	args.AddressDial = destination.Address
+	args.FileData = fileData
+	args.FileName = fileName
+	
+	ok := node.call("Node.RPCStoreFile", &args, &reply)
+	if !ok {
+		fmt.Println("Error when executing RPCStoreFile!")
+		return
+	}
 }
 
 func (node *Node) setStabilizeTimer(ts int) {
@@ -297,27 +302,36 @@ func (node *Node) stabilize() {
 	if node.Successors[0].Address == "" {
 		return
 	}
+
+	args := Args{}
+	reply := Reply{}
+
 	// temp contains predecessor / empty NodeIP{}
-	temp := makeRequest("findPredecessor", "", node.Successors[0].Address)
-	if !temp.Found {
+	args.AddressDial = node.Successors[0].Address
+	ok := node.call("Node.RPCFindPredecessor", &args, &reply)
+	if !ok {
+		fmt.Println("Result of RPCFindPredecessor has error!")
+		return
+	}
+	if !reply.Found {  // todo: not sure, duplicated code
 		// no predecessor found
-		makeNotifyRequest(NodeIP{ID: node.ID, Address: node.Address}, node.Successors[0].Address)
+		args.AddressDial = node.Successors[0].Address
+		args.NodeIPNotify = NodeIP{ID: node.ID, Address: node.Address}
+		node.call("Node.RPCNotify", &args, &reply)
 		return
 	}
 	// predecessor exists
-	if (temp.NodeIP.ID > node.ID && temp.NodeIP.ID < node.Successors[0].ID) || node.ID == node.Successors[0].ID {
-		fmt.Println("Predecessor exists. Update successor to ", temp.NodeIP)
-		node.Successors[0] = temp.NodeIP
+	if (reply.FoundNodeIP.ID > node.ID && reply.FoundNodeIP.ID < node.Successors[0].ID) || node.ID == node.Successors[0].ID {
+		fmt.Println("Predecessor exists. Update successor to ", reply.FoundNodeIP)
+		node.Successors[0] = reply.FoundNodeIP
 	}
 	// send notify to successor[0]
-	makeNotifyRequest(NodeIP{ID: node.ID, Address: node.Address}, node.Successors[0].Address)
+	args.AddressDial = node.Successors[0].Address
+	args.NodeIPNotify = NodeIP{ID: node.ID, Address: node.Address}
+	node.call("Node.RPCNotify", &args, &reply)
+	return
 }
 
-func (node *Node) notify(currentNode NodeIP) { //chord has to be a ring!
-	if node.Predecessor.ID == "" || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) || (currentNode.ID < node.Predecessor.ID && currentNode.ID > node.ID) {
-		node.Predecessor = currentNode
-	}
-}
 
 func (node *Node) fixFinger() {
 	if node.NextFinger >= 160 {
@@ -329,10 +343,19 @@ func (node *Node) fixFinger() {
 	nextNodeNumber.Mod(nextNodeNumber, new(big.Int).Exp(big.NewInt(2), big.NewInt(160), nil))
 
 	nextNodeID := hex.EncodeToString([]byte(nextNodeNumber.String()))
-	temp := node.find(nextNodeID)
 
-	if temp.Found {
-		node.FingerTable[node.NextFinger] = temp.NodeIP
+	args := Args{}
+	reply := Reply{}
+	args.AddressDial = node.Address
+	args.IDToFind = nextNodeID
+	ok := node.call("Node.RPCFind", &args, &reply)
+	if !ok {
+		fmt.Println("Error happens when calling RPCFind in fixFinger!")
+		return
+	}
+
+	if reply.Found {
+		node.FingerTable[node.NextFinger] = reply.FoundNodeIP
 	}
 
 	node.NextFinger++
@@ -344,8 +367,8 @@ func (node *Node) checkPredecessor() {
 		return
 	}
 
-	conn, err := net.Dial("tcp", string(node.Predecessor.Address))
-	defer conn.Close()
+	client, err := rpc.DialHTTP("tcp", node.Predecessor.Address)
+	defer client.Close()
 	if err != nil {
 		node.Predecessor = NodeIP{}
 		fmt.Println("Predecessor has failed", err)
@@ -366,15 +389,6 @@ func (node *Node) createRing() {
 	}
 }
 
-func (node *Node) findSuccessor(id string) NodeFound {
-	if node.ID == node.Successors[0].ID {
-		return NodeFound{Found: true, NodeIP: node.Successors[0]} // If we didn't return here, we would create an infinite loop
-	}
-	if id > node.ID && id <= node.Successors[0].ID {
-		return NodeFound{Found: true, NodeIP: node.Successors[0]}
-	}
-	return NodeFound{Found: false, NodeIP: node.closestPrecedingNode(id)}
-}
 
 func (node *Node) closestPrecedingNode(id string) NodeIP {
 	for i := 159; i >= 0; i-- {
@@ -385,187 +399,29 @@ func (node *Node) closestPrecedingNode(id string) NodeIP {
 	return node.Successors[0]
 }
 
-func (node *Node) find(id string) NodeFound {
-	nextNode := NodeIP{ID: node.ID, Address: node.Address}
-	found := false
-	for i := 0; i < 160 && !found; i++ {
-		if nextNode.Address == "" {
-			continue
-		}
-		temp := makeRequest("findSuccessor", id, nextNode.Address) // execute findSuccessor
-		found = temp.Found
-		nextNode = temp.NodeIP
-	}
-	if found {
-		return NodeFound{Found: true, NodeIP: nextNode}
-	}
-	//fmt.Println("Successor not found!")
-	return NodeFound{Found: false, NodeIP: NodeIP{}}
-}
-
-func makeNotifyRequest(nodeIP NodeIP, ipAddress NodeAddress) {
-	conn, err := net.Dial("tcp", string(ipAddress))
-	if err != nil {
-		fmt.Println("Error when dialing the node", err)
-		return
-	}
-	defer conn.Close()
-
-	// parameter sent to the ipAddress: id and address
-	// this is to avoid using encoder and creating another ugly structure
-	_, writeErr := conn.Write([]byte("notify" + "-" + nodeIP.ID + "-" + string(nodeIP.Address)))
-	if writeErr != nil {
-		fmt.Println("Error when sending notify request to the node", writeErr)
-		return
-	}
-}
-
-func makeRequest(operation string, nodeID string, ipAddressChord NodeAddress) NodeFound {
-	// nodeID: for finding successor, the node that wants to join the ring;
-	//		   otherwise, for finding predecessor, nodeID will be empty
-	// ipAddressChord: the node that is already on the ring. We want to communicate to this ring and join the ring via this node
-	// This function returns found or not + the successor (NodeIP)
-	conn, err := net.Dial("tcp", string(ipAddressChord))
-	if err != nil {
-		fmt.Printf("Error when dialing the node (%v), %v\n", operation, err.Error())
-		return NodeFound{Found: false, NodeIP: NodeIP{}}
-	}
-	//fmt.Printf("Successfully dialing node (%v)\n", operation)
-	defer conn.Close()
-
-	// write to the connection
-	// operations can be:
-	// (1) find ---> find-nodeID
-	// (2) findSuccessor ---> findSuccessor-nodeID
-	// (3) findPredecessor ---> findPredecessor-
-	_, writeErr := conn.Write([]byte(operation + "-" + nodeID))
-	if writeErr != nil {
-		fmt.Println("Error when sending request to the node", writeErr)
-		return NodeFound{} // not sure
-	}
-	//fmt.Printf("Successfully sending request to node (%v)\n", operation)
-
-	if cw, ok := conn.(interface{ CloseWrite() error }); ok {
-		cw.CloseWrite()
-	} else {
-		fmt.Errorf("Connection doesn't implement CloseWrite method")
-		return NodeFound{}
-	}
-
-	// receive the result: found, successor
-	decoder := gob.NewDecoder(conn)
-	//receiveNode := NodeFound{}
-	var receiveNode NodeFound
-	errDecode := decoder.Decode(&receiveNode) // todo - not sure
-	if errDecode != nil {
-		fmt.Println("Error when receiving successor from the chord node", errDecode)
-		return NodeFound{Found: false, NodeIP: NodeIP{}}
-	}
-	//fmt.Printf("Successfully receiving successor from node (%v)\n", operation)
-
-	return receiveNode
-}
 
 func (node *Node) joinRing(ipChord string, portChord int) {
 	// call find
-	temp := makeRequest("find", node.ID, NodeAddress(ipChord+":"+strconv.Itoa(portChord)))
-	if !temp.Found {
+	args := Args{}
+	reply := Reply{}
+	args.IDToFind = node.ID
+	args.AddressDial = ipChord + ":" + strconv.Itoa(portChord)
+	ok := node.call("Node.RPCFind", &args, &reply)
+	if !ok {
+		return
+	}
+	if !reply.Found {
 		fmt.Println("Join ring fails! Cannot find the successor of the new node!")
 		return
 	}
-	node.Successors[0] = temp.NodeIP
+	node.Successors[0] = reply.FoundNodeIP
 	fmt.Println("The new node's successor is ", node.Successors[0])
 }
 
-func handleConnection(conn net.Conn, node *Node) {
-	defer conn.Close()
-
-	// Read the incoming request
-	buf, readErr := ioutil.ReadAll(conn)
-	if readErr != nil {
-		fmt.Println("Error when reading request from other node", readErr)
-		return
-	}
-	request := string(buf[:])
-
-	requestSplit := strings.Split(request, "-")
-
-	if requestSplit[0] == "find" {
-		fmt.Println("request split is ", requestSplit)
-	}
-
-	switch requestSplit[0] {
-	case "find":
-		result := node.find(requestSplit[1])
-		fmt.Println(result.NodeIP.Address)
-		// send successor back to the node
-		encoder := gob.NewEncoder(conn)
-		errEncode := encoder.Encode(result)
-		if errEncode != nil {
-			fmt.Println("Error when sending find request to the node", errEncode)
-			return
-		}
-	case "findSuccessor":
-		result := node.findSuccessor(requestSplit[1])
-		// send successor back to the node
-		encoder := gob.NewEncoder(conn)
-		errEncode := encoder.Encode(result)
-		if errEncode != nil {
-			fmt.Println("Error when sending findSuccessor request to the node", errEncode)
-			return
-		}
-	case "findPredecessor":
-		predecessor := node.Predecessor
-		result := NodeFound{}
-		if predecessor.ID != "" {
-			result.Found = true
-			result.NodeIP = predecessor
-		}
-		// send predecessor back to the node
-		encoder := gob.NewEncoder(conn)
-		errEncode := encoder.Encode(result)
-		if errEncode != nil {
-			fmt.Println("Error when sending findPredecessor request to the chord node", errEncode)
-			return
-		}
-	case "notify":
-		id := requestSplit[1]
-		address := requestSplit[2]
-		if id != node.ID { // A node can't be it's own predecessor
-			fmt.Println("predecessor before:" + node.Predecessor.ID)
-			node.notify(NodeIP{ID: id, Address: NodeAddress(address)})
-			fmt.Println("predecessor after:" + node.Predecessor.ID)
-		}
-		return
-	case "storeFile":
-		fileName := requestSplit[1]
-		fileContent := requestSplit[2]
-		for i := 3; i < len(requestSplit); i++ {
-			fileContent += "-" + requestSplit[i]
-		}
-		err := os.WriteFile(fileName, []byte(fileContent), 0644)
-		if err != nil {
-			fmt.Println("Error when writing the file", err)
-			return
-		}
-		key := createIdentifier(fileName)
-		node.Bucket[key] = FileName(fileName)
-	}
-}
 
 func createIdentifier(name string) string {
 	// name is ip:port
 	// generate a 40-character hash key for the name
-
-	// h := sha1.New()
-	// io.WriteString(h, string(name))
-	// temp := string(h.Sum(nil))
-	// tempArr := strings.Split(temp, " ")
-	// result := ""
-	// for _, value := range tempArr {
-	// 	result += fmt.Sprintf("%s", value)
-	// }
-	// return result
 	h := sha1.New()
 	io.WriteString(h, name)
 	identifier := hex.EncodeToString(h.Sum(nil))
