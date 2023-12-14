@@ -307,7 +307,7 @@ func (node *Node) stabilize() {
 		// predecessor exists
 		if (temp.NodesIP[0].ID > node.ID && temp.NodesIP[0].ID < node.Successors[0].ID) || node.ID == node.Successors[0].ID {
 			fmt.Println("Predecessor exists. Update successors to ", temp.NodesIP)
-			node.Successors = temp.NodesIP
+			node.Successors[0] = temp.NodesIP[0]
 		}
 	}
 	// update other successors
@@ -392,7 +392,6 @@ func (node *Node) closestPrecedingNode(id string) NodeIP {
 			return node.FingerTable[i]
 		}
 	}
-	fmt.Println(node.Successors[0].ID)
 	return node.Successors[0]
 }
 
@@ -497,7 +496,7 @@ func (node *Node) joinRing(ipChord string, portChord int) bool {
 	//	return false
 	//}
 
-	node.Successors = temp.NodesIP
+	node.Successors[0] = temp.NodesIP[0]
 	fmt.Println("The new node's successor is ", node.Successors[0])
 	return true
 }
