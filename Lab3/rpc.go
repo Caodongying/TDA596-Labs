@@ -11,15 +11,15 @@ import (
 // remember to capitalize all names.
 
 type Args struct {
-	AddressDial string
-	IDToFind string
+	AddressDial  string
+	IDToFind     string
 	NodeIPNotify NodeIP
-	FileData []byte
-	FileName string
+	FileData     []byte
+	FileName     string
 }
 
 type Reply struct {
-	Found bool
+	Found        bool
 	FoundNodeIPs []NodeIP
 }
 
@@ -39,7 +39,7 @@ func (node *Node) call(rpcname string, args *Args, reply *Reply) bool { //not su
 	return false
 }
 
-func (node *Node) RPCFind(args *Args, reply *Reply) error{
+func (node *Node) RPCFind(args *Args, reply *Reply) error {
 	nextNode := NodeIP{ID: node.ID, Address: node.Address}
 	found := false
 	for i := 0; i < 160 && !found; i++ {
@@ -48,7 +48,7 @@ func (node *Node) RPCFind(args *Args, reply *Reply) error{
 			continue
 		}
 
-		args.AddressDial =  nextNode.Address
+		args.AddressDial = nextNode.Address
 		ok := node.call("Node.RPCFindSuccessor", args, reply)
 		if !ok {
 			// return errors.New("Error when calling RPCFindSuccessor!")
@@ -67,17 +67,19 @@ func (node *Node) RPCFind(args *Args, reply *Reply) error{
 	return nil
 }
 
-func (node *Node) RPCFindSuccessor(args *Args, reply *Reply) error{
+func (node *Node) RPCFindSuccessor(args *Args, reply *Reply) error {
 	// this function has no error returned now
 	if node.ID == node.Successors[0].ID {
 		reply.Found = true
 		reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
 		return nil // If we didn't return here, we would create an infinite loop
 	}
-	if args.IDToFind > node.ID && args.IDToFind <= node.Successors[0].ID {
-		reply.Found = true
-		reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
-		return nil
+	if args.IDToFind > node.ID {
+		if args.IDToFind <= node.Successors[0].ID || node.Successors[0].ID < node.ID {
+			reply.Found = true
+			reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
+			return nil
+		}
 	}
 	reply.Found = false
 	reply.FoundNodeIPs = []NodeIP{node.closestPrecedingNode(args.IDToFind)}
@@ -102,7 +104,7 @@ func (node *Node) RPCFindPredecessor(args *Args, reply *Reply) error {
 	if predecessor.ID != "" {
 		reply.Found = true
 		reply.FoundNodeIPs = []NodeIP{predecessor}
-	}else{
+	} else {
 		reply.Found = false
 	}
 	return nil
