@@ -115,7 +115,7 @@ func (node *Node) RPCFindPredecessor(args *Args, reply *Reply) error {
 	return nil
 }
 
-func (node *Node) RPCFindOtherSuccessor(args *Args, reply *Reply) error {
+func (node *Node) RPCFindOtherSuccessors(args *Args, reply *Reply) error {
 	reply.Found = true
 	reply.FoundNodeIPs = node.Successors
 	return nil
