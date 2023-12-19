@@ -11,11 +11,8 @@ import (
 // remember to capitalize all names.
 
 type Args struct {
-	ID string
 	AddressDial string
 	IDToFind string
-	Found bool
-	FoundNodeIP string
 	NodeIPNotify NodeIP
 	FileData []byte
 	FileName string
@@ -23,7 +20,7 @@ type Args struct {
 
 type Reply struct {
 	Found bool
-	FoundNodeIP NodeIP
+	FoundNodeIPs []NodeIP
 }
 
 func (node *Node) call(rpcname string, args *Args, reply *Reply) bool { //not sure - interface{}
@@ -58,15 +55,14 @@ func (node *Node) RPCFind(args *Args, reply *Reply) error{
 			return nil
 		}
 		found = reply.Found
-		nextNode = reply.FoundNodeIP
+		nextNode = reply.FoundNodeIPs[0]
 	}
 	if found {
-		// reply.Found = true
-		// reply.FoundNodeIP = nextNode
+		reply.Found = true
+		reply.FoundNodeIPs = []NodeIP{nextNode}
 		return nil
 	}
-	// reply.Found = false
-	// reply.FoundNodeIP = NodeIP{}
+
 	// return errors.New("Successor not found!")
 	return nil
 }
@@ -75,16 +71,16 @@ func (node *Node) RPCFindSuccessor(args *Args, reply *Reply) error{
 	// this function has no error returned now
 	if node.ID == node.Successors[0].ID {
 		reply.Found = true
-		reply.FoundNodeIP = node.Successors[0]
+		reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
 		return nil // If we didn't return here, we would create an infinite loop
 	}
 	if args.IDToFind > node.ID && args.IDToFind <= node.Successors[0].ID {
 		reply.Found = true
-		reply.FoundNodeIP = node.Successors[0]
+		reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
 		return nil
 	}
 	reply.Found = false
-	reply.FoundNodeIP = node.closestPrecedingNode(args.IDToFind)
+	reply.FoundNodeIPs = []NodeIP{node.closestPrecedingNode(args.IDToFind)}
 	return nil
 }
 
@@ -105,10 +101,16 @@ func (node *Node) RPCFindPredecessor(args *Args, reply *Reply) error {
 	predecessor := node.Predecessor
 	if predecessor.ID != "" {
 		reply.Found = true
-		reply.FoundNodeIP = predecessor
+		reply.FoundNodeIPs = []NodeIP{predecessor}
 	}else{
 		reply.Found = false
 	}
+	return nil
+}
+
+func (node *Node) RPCFindOtherSuccessor(args *Args, reply *Reply) error {
+	reply.Found = true
+	reply.FoundNodeIPs = node.Successors
 	return nil
 }
 

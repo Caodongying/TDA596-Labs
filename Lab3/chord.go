@@ -147,7 +147,12 @@ func main() {
 	} else if *ipAddressChord != "" && *portChord != -1 {
 		// joins an existing ring
 		fmt.Println("start to join the ring")
-		go node.joinRing(*ipAddressChord, *portChord)
+		ch := make(chan bool)
+		go node.joinRing(*ipAddressChord, *portChord, ch)
+		result := <-ch
+		if !result {
+			return
+		}
 	}
 
 	// Create a goroutine to start the three timers
@@ -217,8 +222,8 @@ func (node *Node) lookUp(fileName string) NodeIP {
 	}
 	// 3 - print out the node information
 	//     id, ip, port
-	fmt.Printf("Node Information: \n  %v  %v", reply.FoundNodeIP.ID, reply.FoundNodeIP.Address)
-	return reply.FoundNodeIP
+	fmt.Printf("Node Information: \n  %v  %v", reply.FoundNodeIPs[0].ID, reply.FoundNodeIPs[0].Address)
+	return reply.FoundNodeIPs[0]
 }
 
 func (node *Node) printState() {
@@ -227,6 +232,7 @@ func (node *Node) printState() {
 	for _, successor := range node.Successors {
 		fmt.Printf("successor %v  %v\n", successor.ID, successor.Address)
 	}
+	fmt.Println("Fingers:")
 	for _, finger := range node.FingerTable {
 		fmt.Printf("finger %v  %v\n", finger.ID, finger.Address)
 	}
@@ -313,17 +319,20 @@ func (node *Node) stabilize() {
 		fmt.Println("Result of RPCFindPredecessor has error!")
 		return
 	}
-	if !reply.Found {  // todo: not sure, duplicated code
-		// no predecessor found
-		args.AddressDial = node.Successors[0].Address
-		args.NodeIPNotify = NodeIP{ID: node.ID, Address: node.Address}
-		node.call("Node.RPCNotify", &args, &reply)
-		return
+	if reply.Found {
+		// predecessor exists
+		if (reply.FoundNodeIPs[0].ID > node.ID && reply.FoundNodeIPs[0].ID < node.Successors[0].ID) || node.ID == node.Successors[0].ID {
+			fmt.Println("Predecessor exists. Update successor to ", reply.FoundNodeIPs)
+			node.Successors[0] = reply.FoundNodeIPs[0]
+		}
 	}
-	// predecessor exists
-	if (reply.FoundNodeIP.ID > node.ID && reply.FoundNodeIP.ID < node.Successors[0].ID) || node.ID == node.Successors[0].ID {
-		fmt.Println("Predecessor exists. Update successor to ", reply.FoundNodeIP)
-		node.Successors[0] = reply.FoundNodeIP
+	// update other successors
+	reply = Reply{}
+	ok = node.call("Node.RPCFindOtherSuccessors", &args, &reply)
+	if reply.Found {
+		for i := 1; i < len(node.Successors); i++ {
+			node.Successors[i] = reply.FoundNodeIPs[i-1]
+		}
 	}
 	// send notify to successor[0]
 	args.AddressDial = node.Successors[0].Address
@@ -355,7 +364,7 @@ func (node *Node) fixFinger() {
 	}
 
 	if reply.Found {
-		node.FingerTable[node.NextFinger] = reply.FoundNodeIP
+		node.FingerTable[node.NextFinger] = reply.FoundNodeIPs[0]
 	}
 
 	node.NextFinger++
@@ -379,7 +388,9 @@ func (node *Node) checkPredecessor() {
 
 func (node *Node) createRing() {
 	// initialize the successor list and finger table
-	node.Successors[0] = NodeIP{ID: node.ID, Address: node.Address}
+	for i := range node.Successors {
+		node.Successors[i] = NodeIP{ID: node.ID, Address: node.Address}
+	}
 
 	for index := range node.FingerTable {
 		node.FingerTable[index] = NodeIP{
@@ -400,22 +411,30 @@ func (node *Node) closestPrecedingNode(id string) NodeIP {
 }
 
 
-func (node *Node) joinRing(ipChord string, portChord int) {
+func (node *Node) joinRing(ipChord string, portChord int, ch chan bool) {
 	// call find
+
+	// all successor lists need to have the same length, TAs confirmed this
+	// TODO: find way to check this
+
 	args := Args{}
 	reply := Reply{}
 	args.IDToFind = node.ID
 	args.AddressDial = ipChord + ":" + strconv.Itoa(portChord)
 	ok := node.call("Node.RPCFind", &args, &reply)
 	if !ok {
+		ch <- false
 		return
 	}
 	if !reply.Found {
 		fmt.Println("Join ring fails! Cannot find the successor of the new node!")
+		ch <- false
 		return
 	}
-	node.Successors[0] = reply.FoundNodeIP
+	node.Successors[0] = reply.FoundNodeIPs[0]
 	fmt.Println("The new node's successor is ", node.Successors[0])
+	ch <- true
+	return
 }
 
 
