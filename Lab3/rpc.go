@@ -81,6 +81,11 @@ func (node *Node) RPCFindSuccessor(args *Args, reply *Reply) error {
 			return nil
 		}
 	}
+	if node.Successors[0].ID < node.ID && args.IDToFind < node.Successors[0].ID {
+		reply.Found = true
+		reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
+		return nil
+	}
 	reply.Found = false
 	reply.FoundNodeIPs = []NodeIP{node.closestPrecedingNode(args.IDToFind)}
 	return nil

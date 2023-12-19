@@ -168,7 +168,7 @@ func main() {
 
 	rpc.Register(&node) // not sure
 	rpc.HandleHTTP()
-	listener, err := net.Listen("tcp", *ipAddressClient + ":" + strconv.Itoa(*portClient))
+	listener, err := net.Listen("tcp", *ipAddressClient+":"+strconv.Itoa(*portClient))
 	if err != nil {
 		log.Fatal("Listener error: ", err)
 		return
@@ -271,7 +271,7 @@ func (node *Node) storeFile(filePath string) {
 	args.AddressDial = destination.Address
 	args.FileData = fileData
 	args.FileName = fileName
-	
+
 	ok := node.call("Node.RPCStoreFile", &args, &reply)
 	if !ok {
 		fmt.Println("Error when executing RPCStoreFile!")
@@ -341,7 +341,6 @@ func (node *Node) stabilize() {
 	return
 }
 
-
 func (node *Node) fixFinger() {
 	if node.NextFinger >= 160 {
 		node.NextFinger = 0
@@ -400,7 +399,6 @@ func (node *Node) createRing() {
 	}
 }
 
-
 func (node *Node) closestPrecedingNode(id string) NodeIP {
 	for i := 159; i >= 0; i-- {
 		if node.FingerTable[i].ID > node.ID && node.FingerTable[i].ID <= id {
@@ -409,7 +407,6 @@ func (node *Node) closestPrecedingNode(id string) NodeIP {
 	}
 	return node.Successors[0]
 }
-
 
 func (node *Node) joinRing(ipChord string, portChord int, ch chan bool) {
 	// call find
@@ -436,7 +433,6 @@ func (node *Node) joinRing(ipChord string, portChord int, ch chan bool) {
 	ch <- true
 	return
 }
-
 
 func createIdentifier(name string) string {
 	// name is ip:port
