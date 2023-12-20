@@ -457,6 +457,7 @@ func createIdentifier(name string) string {
 	h := sha1.New()
 	io.WriteString(h, name)
 	identifier := hex.EncodeToString(h.Sum(nil))
-	fmt.Println("Identifier is ", identifier)
+	fmt.Println("Identifier is", identifier)
+	fmt.Println("name is", name)
 	return identifier
 }
