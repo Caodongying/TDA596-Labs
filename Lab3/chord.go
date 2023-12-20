@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -170,7 +169,7 @@ func main() {
 	rpc.HandleHTTP()
 	listener, err := net.Listen("tcp", *ipAddressClient+":"+strconv.Itoa(*portClient))
 	if err != nil {
-		log.Fatal("Listener error: ", err)
+		fmt.Println("Listener error: ", err)
 		return
 	}
 	http.Serve(listener, nil) // todo: not sure if go is required
@@ -328,7 +327,7 @@ func (node *Node) stabilize() {
 	}
 	// update other successors
 	reply = Reply{}
-	ok = node.call("Node.RPCFindOtherSuccessors", &args, &reply)
+	ok = node.call("Node.RPCFindAllSuccessors", &args, &reply)
 	if reply.Found {
 		for i := 1; i < len(node.Successors); i++ {
 			node.Successors[i] = reply.FoundNodeIPs[i-1]
@@ -370,8 +369,9 @@ func (node *Node) fixFinger() {
 }
 
 func (node *Node) checkPredecessor() {
-	// check if predecessor is still running
+	// check if predecessor is still running, meaning if predecessor quits or not
 	if node.Predecessor.ID == "" {
+		// fmt.Println("There is no predecessor now!")
 		return
 	}
 
@@ -379,7 +379,7 @@ func (node *Node) checkPredecessor() {
 	defer client.Close()
 	if err != nil {
 		node.Predecessor = NodeIP{}
-		fmt.Println("Predecessor has failed", err)
+		fmt.Println("Predecessor has failed/quited!", err)
 		return
 	}
 	return
@@ -428,7 +428,7 @@ func (node *Node) joinRing(ipChord string, portChord int, ch chan bool) {
 		ch <- false
 		return
 	}
-	node.Successors[0] = reply.FoundNodeIPs[0]
+	node.Successors[0] = reply.FoundNodeIPs[0] //just give one, as the list length is always 1
 	fmt.Println("The new node's successor is ", node.Successors[0])
 	ch <- true
 	return

@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/rpc"
 	"os"
 )
@@ -23,15 +22,15 @@ type Reply struct {
 	FoundNodeIPs []NodeIP
 }
 
-func (node *Node) call(rpcname string, args *Args, reply *Reply) bool { //not sure - interface{}
+func (node *Node) call(rpcname string, args *Args, reply *Reply) bool {
 	client, err := rpc.DialHTTP("tcp", args.AddressDial)
 	if err != nil {
-		log.Fatal("Client connection error: ", err)
-		return false // not sure if needed
+		fmt.Println("Client connection error: ", err)
+		return false
 	}
 	defer client.Close()
 
-	err = client.Call(rpcname, &args, &reply) // not sure
+	err = client.Call(rpcname, &args, &reply)
 	if err == nil {
 		return true
 	}
@@ -55,7 +54,7 @@ func (node *Node) RPCFind(args *Args, reply *Reply) error {
 			return nil
 		}
 		found = reply.Found
-		nextNode = reply.FoundNodeIPs[0]
+		nextNode = reply.FoundNodeIPs[0] // no need to first check if reply.FoundNodeIPs is empty, as there is always a non-empty returned
 	}
 	if found {
 		reply.Found = true
@@ -69,36 +68,39 @@ func (node *Node) RPCFind(args *Args, reply *Reply) error {
 
 func (node *Node) RPCFindSuccessor(args *Args, reply *Reply) error {
 	// this function has no error returned now
+	// three cases where we say successor is found
 	if node.ID == node.Successors[0].ID {
 		reply.Found = true
 		reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
 		return nil // If we didn't return here, we would create an infinite loop
 	}
-	if args.IDToFind > node.ID {
+	if node.ID < args.IDToFind { // todo: logic here is correct, but do we probably want to rewrite it as our purpose is check if the request node is in between the current node and its first successor on the ring
 		if args.IDToFind <= node.Successors[0].ID || node.Successors[0].ID < node.ID {
 			reply.Found = true
 			reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
 			return nil
 		}
 	}
-	if node.Successors[0].ID < node.ID && args.IDToFind < node.Successors[0].ID {
+	if args.IDToFind < node.Successors[0].ID && node.Successors[0].ID < node.ID {
 		reply.Found = true
 		reply.FoundNodeIPs = []NodeIP{node.Successors[0]}
 		return nil
 	}
+
 	reply.Found = false
 	reply.FoundNodeIPs = []NodeIP{node.closestPrecedingNode(args.IDToFind)}
 	return nil
 }
 
 func (node *Node) RPCNotify(args *Args, reply *Reply) error {
-	currentNode := args.NodeIPNotify
-	if currentNode.ID == node.ID { // A node can't be it's own predecessor
+	// Node sends notification to its successor to update the successor's predecessor
+	notifySender := args.NodeIPNotify // This is the node that sends the notification
+	if notifySender.ID == node.ID { // A node can't be it's own predecessor
 		return nil
 	}
 	fmt.Println("predecessor before: " + node.Predecessor.ID)
-	if node.Predecessor.ID == "" || (currentNode.ID > node.Predecessor.ID && currentNode.ID < node.ID) || (currentNode.ID < node.Predecessor.ID && currentNode.ID > node.ID) {
-		node.Predecessor = currentNode
+	if node.Predecessor.ID == "" || (notifySender.ID > node.Predecessor.ID && notifySender.ID < node.ID) || (notifySender.ID < node.Predecessor.ID && notifySender.ID > node.ID) {
+		node.Predecessor = notifySender
 	}
 	fmt.Println("predecessor after: " + node.Predecessor.ID)
 	return nil
@@ -115,7 +117,7 @@ func (node *Node) RPCFindPredecessor(args *Args, reply *Reply) error {
 	return nil
 }
 
-func (node *Node) RPCFindOtherSuccessors(args *Args, reply *Reply) error {
+func (node *Node) RPCFindOtherSuccessors(args *Args, reply *Reply) error { // todo: maybe we want to name it as RPCFindAllSuccessors
 	reply.Found = true
 	reply.FoundNodeIPs = node.Successors
 	return nil
