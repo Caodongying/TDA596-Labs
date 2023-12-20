@@ -426,7 +426,18 @@ func (node *Node) joinRing(ipChord string, portChord int, ch chan bool) {
 	reply := Reply{}
 	args.IDToFind = node.ID
 	args.AddressDial = ipChord + ":" + strconv.Itoa(portChord)
-	ok := node.call("Node.RPCFind", &args, &reply)
+	ok := node.call("Node.RPCFindAllSuccessors", &args, &reply)
+	if !ok {
+		ch <- false
+		return
+	}
+	if len(reply.FoundNodeIPs) != len(node.Successors) {
+		fmt.Println("Join ring failed, use value " + strconv.Itoa(len(reply.FoundNodeIPs)) + " for r.")
+		ch <- false
+		return
+	}
+
+	ok = node.call("Node.RPCFind", &args, &reply)
 	if !ok {
 		ch <- false
 		return
