@@ -102,14 +102,25 @@ func (node *Node) RPCNotify(args *Args, reply *Reply) error {
 	if node.Predecessor.ID == "" || (notifySender.ID > node.Predecessor.ID && notifySender.ID < node.ID) || (notifySender.ID < node.Predecessor.ID && notifySender.ID > node.ID) {
 		node.Predecessor = notifySender
 		currentPath, _ := os.Getwd()
+		changeLocation := false
 		for key, filename := range node.Bucket {
-			if key < node.Predecessor.ID || key > node.ID {
+			if node.Predecessor.ID < node.ID {
+				if key < node.Predecessor.ID || key > node.ID {
+					changeLocation = true
+				}
+			} else {
+				if key < node.Predecessor.ID && key > node.ID {
+					changeLocation = true
+				}
+			}
+			if changeLocation {
 				fmt.Println("change file location")
 				//fmt.Println(currentPath + "\\" + node.ID + "\\" + string(filename))
 				//node.storeFile(currentPath + "\\" + node.ID + "\\" + string(filename))
 				fileData, err := ioutil.ReadFile(currentPath + "\\" + node.ID + "\\" + string(filename))
 				if err != nil {
 					fmt.Println("Error when opening the file!")
+					changeLocation = false
 					return nil
 				}
 
@@ -119,6 +130,7 @@ func (node *Node) RPCNotify(args *Args, reply *Reply) error {
 				ok := node.call("Node.RPCStoreFile", args, reply)
 				if !ok {
 					fmt.Println("Error when relocating file.")
+					changeLocation = false
 					return nil
 				}
 
@@ -127,6 +139,7 @@ func (node *Node) RPCNotify(args *Args, reply *Reply) error {
 				if err != nil {
 					fmt.Println("Failed to delete the file.")
 				}
+				changeLocation = false
 			}
 		}
 	}
