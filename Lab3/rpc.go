@@ -23,18 +23,17 @@ type Reply struct {
 }
 
 func (node *Node) call(rpcname string, args *Args, reply *Reply) bool {
-	client, err := rpc.DialHTTP("tcp", args.AddressDial)
-	if err != nil {
-		fmt.Println("Client connection error: ", err)
-		return false
+	for attempts := 3; attempts > 0; attempts-- {
+		client, err := rpc.DialHTTP("tcp", args.AddressDial)
+		if err != nil {
+			fmt.Println("Client connection error: ", err)
+			continue
+		}
+		err = client.Call(rpcname, &args, &reply)
+		if err == nil {
+			return true
+		}
 	}
-	defer client.Close()
-
-	err = client.Call(rpcname, &args, &reply)
-	if err == nil {
-		return true
-	}
-
 	return false
 }
 
@@ -95,7 +94,7 @@ func (node *Node) RPCFindSuccessor(args *Args, reply *Reply) error {
 func (node *Node) RPCNotify(args *Args, reply *Reply) error {
 	// Node sends notification to its successor to update the successor's predecessor
 	notifySender := args.NodeIPNotify // This is the node that sends the notification
-	if notifySender.ID == node.ID { // A node can't be it's own predecessor
+	if notifySender.ID == node.ID {   // A node can't be it's own predecessor
 		return nil
 	}
 	fmt.Println("predecessor before: " + node.Predecessor.ID)

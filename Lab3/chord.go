@@ -315,7 +315,10 @@ func (node *Node) stabilize() {
 	args.AddressDial = node.Successors[0].Address
 	ok := node.call("Node.RPCFindPredecessor", &args, &reply)
 	if !ok {
-		fmt.Println("Result of RPCFindPredecessor has error!")
+		fmt.Println("Successor has failed. Updating successor.")
+		for i := 1; i < len(node.Successors); i++ {
+			node.Successors[i-1] = node.Successors[i]
+		}
 		return
 	}
 	if reply.Found {
@@ -375,8 +378,8 @@ func (node *Node) checkPredecessor() {
 		return
 	}
 
-	client, err := rpc.DialHTTP("tcp", node.Predecessor.Address)
-	defer client.Close()
+	_, err := rpc.DialHTTP("tcp", node.Predecessor.Address)
+	//defer client.Close()
 	if err != nil {
 		node.Predecessor = NodeIP{}
 		fmt.Println("Predecessor has failed/quited!", err)
