@@ -303,7 +303,6 @@ func (node *Node) setCheckPredecessorTimer(tcp int) {
 }
 
 func (node *Node) stabilize() {
-	fmt.Println("predecessor is: " + node.Predecessor.ID)
 	if node.Successors[0].Address == "" {
 		return
 	}
@@ -374,7 +373,6 @@ func (node *Node) fixFinger() {
 func (node *Node) checkPredecessor() {
 	// check if predecessor is still running, meaning if predecessor quits or not
 	if node.Predecessor.ID == "" {
-		// fmt.Println("There is no predecessor now!")
 		return
 	}
 

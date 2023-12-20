@@ -97,11 +97,9 @@ func (node *Node) RPCNotify(args *Args, reply *Reply) error {
 	if notifySender.ID == node.ID {   // A node can't be it's own predecessor
 		return nil
 	}
-	fmt.Println("predecessor before: " + node.Predecessor.ID)
 	if node.Predecessor.ID == "" || (notifySender.ID > node.Predecessor.ID && notifySender.ID < node.ID) || (notifySender.ID < node.Predecessor.ID && notifySender.ID > node.ID) {
 		node.Predecessor = notifySender
 	}
-	fmt.Println("predecessor after: " + node.Predecessor.ID)
 	return nil
 }
 
