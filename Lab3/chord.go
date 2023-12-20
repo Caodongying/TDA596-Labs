@@ -257,7 +257,7 @@ func (node *Node) storeFile(filePath string) {
 		return
 	}
 
-	filePathSplit := strings.Split(filePath, "\\") // split by \
+	filePathSplit := strings.Split(filePath, "/") // split by / on mac
 	fileName := filePathSplit[len(filePathSplit)-1]
 	destination := node.lookUp(fileName)
 	if destination.ID == "" { // here we don't print error as it's already done in lookUp()

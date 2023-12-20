@@ -117,7 +117,7 @@ func (node *Node) RPCNotify(args *Args, reply *Reply) error {
 				fmt.Println("change file location")
 				//fmt.Println(currentPath + "\\" + node.ID + "\\" + string(filename))
 				//node.storeFile(currentPath + "\\" + node.ID + "\\" + string(filename))
-				fileData, err := ioutil.ReadFile(currentPath + "\\" + node.ID + "\\" + string(filename))
+				fileData, err := ioutil.ReadFile(currentPath + "/" + node.ID + "/" + string(filename))
 				if err != nil {
 					fmt.Println("Error when opening the file!")
 					changeLocation = false
@@ -135,7 +135,7 @@ func (node *Node) RPCNotify(args *Args, reply *Reply) error {
 				}
 
 				delete(node.Bucket, key)
-				err = os.Remove(node.ID + "\\" + string(filename))
+				err = os.Remove(node.ID + "/" + string(filename))
 				if err != nil {
 					fmt.Println("Failed to delete the file.")
 				}
@@ -165,7 +165,7 @@ func (node *Node) RPCFindAllSuccessors(args *Args, reply *Reply) error { // todo
 
 func (node *Node) RPCStoreFile(args *Args, reply *Reply) error {
 	//currentPath, _ := os.Getwd()
-	err := os.WriteFile(node.ID+"\\"+args.FileName, args.FileData, 0644)
+	err := os.WriteFile(node.ID+"/"+args.FileName, args.FileData, 0644)
 	if err != nil {
 		fmt.Println("Error when writing the file", err)
 		return errors.New("Error when writing the file")
