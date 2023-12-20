@@ -116,7 +116,7 @@ func (node *Node) RPCFindPredecessor(args *Args, reply *Reply) error {
 	return nil
 }
 
-func (node *Node) RPCFindOtherSuccessors(args *Args, reply *Reply) error { // todo: maybe we want to name it as RPCFindAllSuccessors
+func (node *Node) RPCFindAllSuccessors(args *Args, reply *Reply) error { // todo: maybe we want to name it as RPCFindAllSuccessors
 	reply.Found = true
 	reply.FoundNodeIPs = node.Successors
 	return nil

@@ -403,6 +403,11 @@ func (node *Node) createRing() {
 }
 
 func (node *Node) closestPrecedingNode(id string) NodeIP {
+	for i := 1; i < len(node.Successors); i++ {
+		if node.Successors[i].ID > node.ID && node.Successors[i].ID <= id {
+			return node.Successors[i]
+		}
+	}
 	for i := 159; i >= 0; i-- {
 		if node.FingerTable[i].ID > node.ID && node.FingerTable[i].ID <= id {
 			return node.FingerTable[i]
