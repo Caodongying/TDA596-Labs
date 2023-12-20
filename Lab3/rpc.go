@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/rpc"
 	"os"
 )
@@ -33,6 +34,7 @@ func (node *Node) call(rpcname string, args *Args, reply *Reply) bool {
 		if err == nil {
 			return true
 		}
+		fmt.Println("Error when calling client:", err)
 	}
 	return false
 }
@@ -99,6 +101,34 @@ func (node *Node) RPCNotify(args *Args, reply *Reply) error {
 	}
 	if node.Predecessor.ID == "" || (notifySender.ID > node.Predecessor.ID && notifySender.ID < node.ID) || (notifySender.ID < node.Predecessor.ID && notifySender.ID > node.ID) {
 		node.Predecessor = notifySender
+		currentPath, _ := os.Getwd()
+		for key, filename := range node.Bucket {
+			if key < node.Predecessor.ID || key > node.ID {
+				fmt.Println("change file location")
+				//fmt.Println(currentPath + "\\" + node.ID + "\\" + string(filename))
+				//node.storeFile(currentPath + "\\" + node.ID + "\\" + string(filename))
+				fileData, err := ioutil.ReadFile(currentPath + "\\" + node.ID + "\\" + string(filename))
+				if err != nil {
+					fmt.Println("Error when opening the file!")
+					return nil
+				}
+
+				args.AddressDial = node.Predecessor.Address
+				args.FileData = fileData
+				args.FileName = string(filename)
+				ok := node.call("Node.RPCStoreFile", args, reply)
+				if !ok {
+					fmt.Println("Error when relocating file.")
+					return nil
+				}
+
+				delete(node.Bucket, key)
+				err = os.Remove(node.ID + "\\" + string(filename))
+				if err != nil {
+					fmt.Println("Failed to delete the file.")
+				}
+			}
+		}
 	}
 	return nil
 }
@@ -121,7 +151,8 @@ func (node *Node) RPCFindAllSuccessors(args *Args, reply *Reply) error { // todo
 }
 
 func (node *Node) RPCStoreFile(args *Args, reply *Reply) error {
-	err := os.WriteFile(args.FileName, args.FileData, 0644)
+	//currentPath, _ := os.Getwd()
+	err := os.WriteFile(node.ID+"\\"+args.FileName, args.FileData, 0644)
 	if err != nil {
 		fmt.Println("Error when writing the file", err)
 		return errors.New("Error when writing the file")

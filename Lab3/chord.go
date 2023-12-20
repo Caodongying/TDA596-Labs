@@ -105,11 +105,12 @@ func main() {
 			fmt.Println("Please use an identifier with 40 characters")
 			return
 		}
-		_, err := strconv.ParseUint(*id, 16, 64)
-		if err != nil {
-			fmt.Println("Please use an identifier consisting of hexcode characters")
-			return
-		}
+		// TODO: check hexcode characters, below doesn't work
+		//_, err := strconv.ParseInt(*id, 16, 64)
+		//if err != nil {
+		//	fmt.Println("Please use an identifier consisting of hexcode characters")
+		//	return
+		//}
 	}
 
 	// // crash if only ipAddressChord or portChord is given in command line
@@ -128,6 +129,7 @@ func main() {
 	node := Node{
 		Address:    *ipAddressClient + ":" + strconv.Itoa(*portClient),
 		Successors: make([]NodeIP, *r),
+		Bucket:     make(map[string]FileName),
 	}
 
 	// Check if there's an customized id or not
@@ -153,6 +155,9 @@ func main() {
 			return
 		}
 	}
+
+	// Create a folder for the bucket
+	os.Mkdir(node.ID, os.ModePerm)
 
 	// Create a goroutine to start the three timers
 	go node.setStabilizeTimer(*ts)
@@ -221,7 +226,7 @@ func (node *Node) lookUp(fileName string) NodeIP {
 	}
 	// 3 - print out the node information
 	//     id, ip, port
-	fmt.Printf("Node Information: \n  %v  %v", reply.FoundNodeIPs[0].ID, reply.FoundNodeIPs[0].Address)
+	fmt.Printf("Lookup Node Information: \n  %v  %v \n", reply.FoundNodeIPs[0].ID, reply.FoundNodeIPs[0].Address)
 	return reply.FoundNodeIPs[0]
 }
 
