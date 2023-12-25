@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -42,6 +43,18 @@ type NodeIP struct {
 type NodeFound struct {
 	Found  bool
 	NodeIP NodeIP
+}
+
+func getLocalAddress() string {
+    conn, err := net.Dial("udp", "8.8.8.8:80")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer conn.Close()
+
+    localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+    return localAddr.IP.String()
 }
 
 func main() {
@@ -127,7 +140,7 @@ func main() {
 
 	// Instantiate the node
 	node := Node{
-		Address:    *ipAddressClient + ":" + strconv.Itoa(*portClient),
+		Address:    getLocalAddress() + ":" + strconv.Itoa(*portClient), // shouldn't be *ipAddressClient
 		Successors: make([]NodeIP, *r),
 		Bucket:     make(map[string]FileName),
 	}
