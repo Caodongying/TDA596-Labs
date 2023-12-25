@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -46,15 +47,39 @@ type NodeFound struct {
 }
 
 func getLocalAddress() string {
-    conn, err := net.Dial("udp", "8.8.8.8:80")
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer conn.Close()
+    // conn, err := net.Dial("udp", "8.8.8.8:80")
+    // if err != nil {
+    //     log.Fatal(err)
+    // }
+    // defer conn.Close()
 
-    localAddr := conn.LocalAddr().(*net.UDPAddr)
+    // localAddr := conn.LocalAddr().(*net.UDPAddr)
 
-    return localAddr.IP.String()
+    // return localAddr.IP.String()
+	resp, err := http.Get("https://httpbin.org/ip")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var data map[string]string
+	err = json.Unmarshal(body, &data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	originIP, exists := data["origin"]
+	if !exists {
+		fmt.Println("key 'origin' not found in the JSON data")
+		return ""
+	}
+
+	return originIP
 }
 
 func main() {
