@@ -47,15 +47,6 @@ type NodeFound struct {
 }
 
 func getLocalAddress() string {
-    // conn, err := net.Dial("udp", "8.8.8.8:80")
-    // if err != nil {
-    //     log.Fatal(err)
-    // }
-    // defer conn.Close()
-
-    // localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-    // return localAddr.IP.String()
 	resp, err := http.Get("https://httpbin.org/ip")
 	if err != nil {
 		log.Fatal(err)
